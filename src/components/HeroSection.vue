@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useHireModal } from '../composables/useHireModal'
+const { openModal } = useHireModal()
 const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
 </script>
 
@@ -27,7 +29,7 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
 
         <div class="hero-cta">
           <a href="#projects" class="btn-primary">Lihat Projects</a>
-          <a href="#contact" class="btn-secondary">Hire Me</a>
+          <button class="btn-secondary" @click="openModal">Hire Me</button>
         </div>
 
         <div class="hero-stats">

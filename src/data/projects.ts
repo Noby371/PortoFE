@@ -1,0 +1,68 @@
+import type { Project } from '../types'
+
+export const projects: Project[] = [
+  {
+    id: 1,
+    title: 'WMS — Sistem Monitoring Tempat Sampah IoT',
+    slug: 'wms-iot-trash-monitoring',
+    description:
+      'Sistem pemantauan kepenuhan tempat sampah secara real-time menggunakan ESP32, sensor ultrasonik HC-SR04, dan logika Fuzzy Tsukamoto untuk menentukan prioritas pengangkutan sampah.',
+    type: 'THESIS',
+    status: 'IN_PROGRESS',
+    techStack: ['ESP32', 'C++', 'MQTT', 'Node.js', 'TypeScript', 'Express', 'Prisma', 'PostgreSQL', 'Vue.js'],
+    imageUrl: undefined,
+    repoUrl: undefined,
+    demoUrl: undefined,
+    featured: true,
+    startDate: '2024-09-01',
+    endDate: undefined,
+  },
+  {
+    id: 2,
+    title: 'InnoTech — Software House Sumenep',
+    slug: 'innotech-software-house',
+    description:
+      'Co-founder dan developer di InnoTech, startup software house di Sumenep yang berfokus pada solusi web, mobile, IoT, dan konsultasi IT untuk bisnis lokal.',
+    type: 'STARTUP',
+    status: 'IN_PROGRESS',
+    techStack: ['Node.js', 'Vue.js', 'Laravel', 'PHP', 'MySQL'],
+    imageUrl: undefined,
+    repoUrl: undefined,
+    demoUrl: undefined,
+    featured: true,
+    startDate: '2024-01-01',
+    endDate: undefined,
+  },
+  {
+    id: 3,
+    title: 'SPK Naive Bayes — Rekomendasi Topik Skripsi',
+    slug: 'spk-naive-bayes',
+    description:
+      'Sistem Pendukung Keputusan berbasis PHP untuk merekomendasikan topik skripsi mahasiswa menggunakan metode Naive Bayes dengan Laplace Smoothing.',
+    type: 'ACADEMIC',
+    status: 'COMPLETED',
+    techStack: ['PHP', 'MySQL', 'HTML', 'CSS', 'Bootstrap'],
+    imageUrl: undefined,
+    repoUrl: undefined,
+    demoUrl: undefined,
+    featured: false,
+    startDate: '2024-03-01',
+    endDate: '2024-06-01',
+  },
+  {
+    id: 4,
+    title: 'Modul Praktikum IoT Interaktif',
+    slug: 'modul-praktikum-iot',
+    description:
+      'Modul pembelajaran IoT berbasis HTML interaktif untuk siswa SMK/SMA dan mahasiswa, mencakup dasar ESP32, GPIO, WiFi, dan MQTT dengan pendekatan analogi.',
+    type: 'ACADEMIC',
+    status: 'COMPLETED',
+    techStack: ['HTML', 'CSS', 'JavaScript', 'ESP32', 'MQTT'],
+    imageUrl: undefined,
+    repoUrl: undefined,
+    demoUrl: undefined,
+    featured: false,
+    startDate: '2024-06-01',
+    endDate: '2024-08-01',
+  },
+]

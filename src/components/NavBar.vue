@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useActiveNav } from '../composables/useActiveNav'
+import { useHireModal } from '../composables/useHireModal'
 
 const isScrolled = ref(false)
 const isMobileOpen = ref(false)
+const { activeSection } = useActiveNav()
+const { openModal } = useHireModal()
 
 const navLinks = [
-  { label: 'About',      href: '#about' },
-  { label: 'Skills',     href: '#skills' },
-  { label: 'Projects',   href: '#projects' },
-  { label: 'Experience', href: '#experience' },
-  { label: 'Contact',    href: '#contact' },
+  { label: 'About',      href: '#about',      id: 'about'      },
+  { label: 'Skills',     href: '#skills',     id: 'skills'     },
+  { label: 'Projects',   href: '#projects',   id: 'projects'   },
+  { label: 'Experience', href: '#experience', id: 'experience' },
+  { label: 'Contact',    href: '#contact',    id: 'contact'    },
 ]
 
 function handleScroll() {
@@ -18,41 +22,52 @@ function handleScroll() {
 
 function toggleMobile() {
   isMobileOpen.value = !isMobileOpen.value
+  // Prevent body scroll when mobile menu is open
+  if (!isMobileOpen.value) {
+    document.body.style.overflow = ''
+  } else {
+    document.body.style.overflow = 'hidden'
+  }
 }
 
 function closeMobile() {
   isMobileOpen.value = false
+  document.body.style.overflow = ''
 }
 
-onMounted(() => window.addEventListener('scroll', handleScroll))
-onUnmounted(() => window.removeEventListener('scroll', handleScroll))
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>
   <header :class="['navbar', { scrolled: isScrolled }]">
     <div class="container navbar-inner">
 
-      <!-- Logo -->
       <a href="#" class="navbar-logo">
         <span class="logo-bracket">&lt;</span>
         FathBoy
         <span class="logo-bracket">/&gt;</span>
       </a>
 
-      <!-- Desktop Nav -->
       <nav class="navbar-links">
         <a
           v-for="link in navLinks"
           :key="link.href"
           :href="link.href"
           class="nav-link"
+          :class="{ active: activeSection === link.id }"
         >
           {{ link.label }}
         </a>
-        <a href="#contact" class="btn-hire">Hire Me</a>
+        <button @click="openModal" class="btn-hire">Hire Me</button>
       </nav>
 
-      <!-- Mobile Toggle -->
       <button class="mobile-toggle" @click="toggleMobile" aria-label="Toggle menu">
         <span :class="['bar', { open: isMobileOpen }]"></span>
         <span :class="['bar', { open: isMobileOpen }]"></span>
@@ -60,60 +75,58 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
       </button>
     </div>
 
-    <!-- Mobile Menu -->
     <div :class="['mobile-menu', { open: isMobileOpen }]">
       <a
         v-for="link in navLinks"
         :key="link.href"
         :href="link.href"
         class="mobile-link"
+        :class="{ active: activeSection === link.id }"
         @click="closeMobile"
       >
         {{ link.label }}
       </a>
-      <a href="#contact" class="btn-hire mobile-hire" @click="closeMobile">
+      <button @click="openModal" class="btn-hire mobile-hire">
         Hire Me
-      </a>
+      </button>
     </div>
   </header>
 </template>
 
 <style scoped>
+/* Navbar Base Styles */
 .navbar {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  z-index: 100;
+  width: 100%;
+  z-index: 1000;
+  background: transparent;
+  transition: all 0.3s ease;
   padding: 1.25rem 0;
-  transition: all var(--transition);
 }
 
 .navbar.scrolled {
-  background: rgba(10, 10, 15, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
-  padding: 0.85rem 0;
+  background: var(--color-bg-primary);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 0.75rem 0;
 }
 
 .navbar-inner {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
+  align-items: center;
 }
 
 /* Logo */
 .navbar-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
   font-family: var(--font-mono);
-  font-size: 1.2rem;
-  font-weight: 600;
   color: var(--color-text-primary);
-  transition: color var(--transition);
   text-decoration: none;
+  transition: color 0.3s ease;
 }
 
 .navbar-logo:hover {
@@ -124,7 +137,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   color: var(--color-accent);
 }
 
-/* Desktop Links */
+/* Desktop Navigation */
 .navbar-links {
   display: flex;
   align-items: center;
@@ -132,72 +145,84 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 }
 
 .nav-link {
-  font-size: 0.9rem;
   color: var(--color-text-secondary);
-  font-weight: 500;
-  transition: color var(--transition);
-  position: relative;
   text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  position: relative;
+  padding-bottom: 4px;
 }
 
 .nav-link::after {
   content: '';
   position: absolute;
-  bottom: -4px;
+  bottom: 0;
   left: 0;
   width: 0;
   height: 2px;
   background: var(--color-accent);
-  transition: width var(--transition);
-}
-
-.nav-link:hover {
-  color: var(--color-text-primary);
+  transition: width 0.3s ease;
 }
 
 .nav-link:hover::after {
   width: 100%;
 }
 
+.nav-link:hover {
+  color: var(--color-accent);
+}
+
+.nav-link.active {
+  color: var(--color-accent);
+}
+
+.nav-link.active::after {
+  width: 100%;
+}
+
 /* Hire Me Button */
 .btn-hire {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-accent);
-  border: 1px solid var(--color-accent);
-  padding: 0.45rem 1.2rem;
-  border-radius: 6px;
-  transition: all var(--transition);
+  padding: 0.5rem 1.25rem;
+  background: var(--color-accent);
+  color: #fff;
   text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .btn-hire:hover {
-  background: var(--color-accent);
-  color: #fff;
+  background: var(--color-accent-hover);
+  transform: translateY(-2px);
 }
 
-/* Mobile Toggle */
+/* Mobile Toggle Button */
 .mobile-toggle {
   display: none;
   flex-direction: column;
-  gap: 5px;
-  background: none;
+  justify-content: space-between;
+  width: 30px;
+  height: 21px;
+  background: transparent;
   border: none;
   cursor: pointer;
-  padding: 4px;
+  padding: 0;
+  z-index: 1001;
 }
 
 .bar {
-  display: block;
-  width: 24px;
-  height: 2px;
+  width: 100%;
+  height: 3px;
   background: var(--color-text-primary);
   border-radius: 2px;
-  transition: all var(--transition);
+  transition: all 0.3s ease;
 }
 
 .bar.open:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
+  transform: translateY(9px) rotate(45deg);
 }
 
 .bar.open:nth-child(2) {
@@ -205,43 +230,76 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 }
 
 .bar.open:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
+  transform: translateY(-9px) rotate(-45deg);
 }
 
 /* Mobile Menu */
 .mobile-menu {
-  display: none;
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 80%;
+  max-width: 300px;
+  height: 100vh;
+  background: var(--color-bg-primary);
+  backdrop-filter: blur(20px);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+  display: flex;
   flex-direction: column;
-  gap: 0;
-  background: var(--color-bg-secondary);
-  border-top: 1px solid var(--color-border);
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.4s ease;
+  gap: 1rem;
+  padding: 6rem 2rem 2rem;
+  transition: right 0.3s ease;
+  z-index: 999;
 }
 
 .mobile-menu.open {
-  max-height: 400px;
+  right: 0;
 }
 
 .mobile-link {
-  padding: 1rem 1.5rem;
-  font-size: 0.95rem;
   color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border);
-  transition: all var(--transition);
   text-decoration: none;
+  font-size: 1.1rem;
+  font-weight: 500;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+  border-radius: 8px;
 }
 
 .mobile-link:hover {
-  color: var(--color-text-primary);
-  background: var(--color-bg-hover);
+  color: var(--color-accent);
+  background: var(--color-accent-dim);
+  padding-left: 1.5rem;
+}
+
+.mobile-link.active {
+  color: var(--color-accent);
+  background: var(--color-accent-dim);
 }
 
 .mobile-hire {
-  margin: 1rem 1.5rem;
+  margin-top: 1rem;
   text-align: center;
-  border-radius: 6px;
+}
+
+/* Overlay untuk mobile menu */
+.mobile-menu::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.mobile-menu.open::before {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Responsive */
@@ -251,10 +309,6 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   }
 
   .mobile-toggle {
-    display: flex;
-  }
-
-  .mobile-menu {
     display: flex;
   }
 }

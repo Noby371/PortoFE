@@ -121,9 +121,10 @@ function handleBackdrop(e: MouseEvent) {
                 <label class="form-label">Budget (opsional)</label>
                 <input
                   v-model="form.budget"
-                  type="text"
+                  type="number"
                   class="form-input"
                   placeholder="Rp 1.000.000 — Rp 5.000.000"
+                  min="0"
                 />
               </div>
             </div>

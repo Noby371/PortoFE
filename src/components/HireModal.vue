@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useHireModal } from '../composables/useHireModal'
 import { sendContact } from '../services/api'
 import { XMarkIcon, PaperAirplaneIcon, BriefcaseIcon } from '@heroicons/vue/24/outline'
@@ -9,10 +9,13 @@ const { isOpen, closeModal } = useHireModal()
 const form = ref({
   name: '',
   email: '',
-  budget: '',
+  budget: '', // simpan sebagai string (angka murni tanpa format)
   type: '',
   message: '',
 })
+
+// Untuk display format Rupiah
+const budgetDisplay = ref('')
 
 const isSubmitting = ref(false)
 const isSuccess = ref(false)
@@ -20,21 +23,90 @@ const errorMsg = ref('')
 
 const projectTypes = ['Web Development', 'Mobile App', 'IoT System', 'Konsultasi IT', 'Lainnya']
 
+// ─── FORMAT RUPIAH ──────────────────────────────────────
+
+/**
+ * Format angka ke Rupiah dengan titik ribuan
+ * Contoh: 1000000 → "1.000.000"
+ */
+function formatRupiah(value: string): string {
+  // Hanya ambil angka
+  const number = value.replace(/[^0-9]/g, '')
+  if (!number) return ''
+
+  // Konversi ke number lalu format dengan titik ribuan
+  return new Intl.NumberFormat('id-ID').format(Number(number))
+}
+
+/**
+ * Handle input budget
+ * - Hanya izinkan angka
+ * - Tampilkan format Rupiah
+ * - Simpan angka murni di form.budget
+ */
+function handleBudgetInput(e: Event) {
+  const input = e.target as HTMLInputElement
+  // Hanya ambil angka
+  const raw = input.value.replace(/[^0-9]/g, '')
+
+  // Simpan angka murni
+  form.value.budget = raw
+
+  // Tampilkan format Rupiah
+  budgetDisplay.value = formatRupiah(raw)
+}
+
+/**
+ * Reset form saat modal ditutup
+ */
+function resetForm() {
+  form.value = {
+    name: '',
+    email: '',
+    budget: '',
+    type: '',
+    message: '',
+  }
+  budgetDisplay.value = ''
+  errorMsg.value = ''
+  isSuccess.value = false
+}
+
+/**
+ * Handle close modal dengan reset
+ */
+function handleClose() {
+  resetForm()
+  closeModal()
+}
+
+// ─── SUBMIT ─────────────────────────────────────────────
+
 async function handleSubmit() {
   isSubmitting.value = true
   errorMsg.value = ''
+
+  // Validasi: Budget harus angka (jika diisi)
+  if (form.value.budget && isNaN(Number(form.value.budget))) {
+    errorMsg.value = 'Budget harus diisi dengan angka!'
+    setTimeout(() => (errorMsg.value = ''), 3000)
+    isSubmitting.value = false
+    return
+  }
 
   try {
     await sendContact({
       name: form.value.name,
       email: form.value.email,
-      subject: `[Hire] ${form.value.type} — Budget: ${form.value.budget || 'Tidak disebutkan'}`,
+      subject: `[Hire] ${form.value.type} — Budget: ${form.value.budget ? 'Rp ' + formatRupiah(form.value.budget) : 'Tidak disebutkan'}`,
       message: form.value.message,
     })
+
     isSuccess.value = true
-    form.value = { name: '', email: '', budget: '', type: '', message: '' }
+
+    // Reset form setelah sukses
     setTimeout(() => {
-      isSuccess.value = false
+      resetForm()
       closeModal()
     }, 3000)
   } catch {
@@ -45,11 +117,22 @@ async function handleSubmit() {
   }
 }
 
+// ─── BACKDROP ───────────────────────────────────────────
+
 function handleBackdrop(e: MouseEvent) {
   if ((e.target as HTMLElement).classList.contains('modal-backdrop')) {
-    closeModal()
+    handleClose()
   }
 }
+
+// ─── WATCH ──────────────────────────────────────────────
+
+// Reset display saat modal ditutup dari luar
+watch(isOpen, (newVal) => {
+  if (!newVal) {
+    resetForm()
+  }
+})
 </script>
 
 <template>
@@ -68,7 +151,7 @@ function handleBackdrop(e: MouseEvent) {
                 <p class="modal-subtitle">Ceritakan proyek Anda</p>
               </div>
             </div>
-            <button class="modal-close" @click="closeModal">
+            <button class="modal-close" @click="handleClose">
               <XMarkIcon class="close-icon" />
             </button>
           </div>
@@ -84,6 +167,8 @@ function handleBackdrop(e: MouseEvent) {
           <form v-else class="modal-form" @submit.prevent="handleSubmit">
             <!-- Error -->
             <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
+
+            <!-- Nama & Email -->
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Nama Lengkap</label>
@@ -107,6 +192,7 @@ function handleBackdrop(e: MouseEvent) {
               </div>
             </div>
 
+            <!-- Jenis Project & Budget -->
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Jenis Project</label>
@@ -120,15 +206,16 @@ function handleBackdrop(e: MouseEvent) {
               <div class="form-group">
                 <label class="form-label">Budget (opsional)</label>
                 <input
-                  v-model="form.budget"
-                  type="number"
+                  type="text"
                   class="form-input"
-                  placeholder="Rp 1.000.000 — Rp 5.000.000"
-                  min="0"
+                  placeholder="Rp 1.000.000"
+                  :value="budgetDisplay"
+                  @input="handleBudgetInput"
                 />
               </div>
             </div>
 
+            <!-- Deskripsi -->
             <div class="form-group">
               <label class="form-label">Deskripsi Project</label>
               <textarea
@@ -140,8 +227,9 @@ function handleBackdrop(e: MouseEvent) {
               ></textarea>
             </div>
 
+            <!-- Actions -->
             <div class="form-actions">
-              <button type="button" class="btn-cancel" @click="closeModal">Batal</button>
+              <button type="button" class="btn-cancel" @click="handleClose">Batal</button>
               <button type="submit" class="btn-submit" :disabled="isSubmitting">
                 <span v-if="isSubmitting" class="spinner"></span>
                 <template v-else>
@@ -310,7 +398,7 @@ select.form-input {
   min-height: 100px;
 }
 
-/* Actions */
+/* ─── Actions ── */
 .form-actions {
   display: flex;
   gap: 0.75rem;
@@ -366,6 +454,7 @@ select.form-input {
   height: 1rem;
 }
 
+/* ── Error ── */
 .error-msg {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -373,10 +462,9 @@ select.form-input {
   padding: 0.75rem 1rem;
   border-radius: 8px;
   font-size: 0.875rem;
-  margin-bottom: 1rem;
 }
 
-/* Spinner */
+/* ── Spinner ── */
 .spinner {
   width: 1rem;
   height: 1rem;

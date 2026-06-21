@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { sendContact } from '../services/api'
 import {
   EnvelopeIcon,
   PhoneIcon,
@@ -7,6 +8,51 @@ import {
   PaperAirplaneIcon,
   CodeBracketSquareIcon,
 } from '@heroicons/vue/24/outline'
+import { getProfile } from '../services/api'
+import { onMounted } from 'vue'
+
+interface Profile {
+  email: string
+  phone: string | null
+  location: string | null
+  githubUrl: string | null
+  linkedinUrl: string | null
+}
+
+import { computed } from 'vue'
+
+const contactInfo = computed(() => [
+  {
+    icon: EnvelopeIcon,
+    label: 'Email',
+    value: profile.value?.email ?? 'email@example.com',
+    href: `mailto:${profile.value?.email ?? 'email@example.com'}`,
+  },
+  {
+    icon: PhoneIcon,
+    label: 'WhatsApp',
+    value: profile.value?.phone ?? '+62 8xx-xxxx-xxxx',
+    href: profile.value?.phone
+      ? `https://wa.me/${profile.value.phone.replace(/\D/g, '')}`
+      : '#',
+  },
+  {
+    icon: MapPinIcon,
+    label: 'Lokasi',
+    value: profile.value?.location ?? 'Sumenep, Madura',
+    href: null,
+  },
+])
+
+const profile = ref<Profile | null>(null)
+
+onMounted(async () => {
+  try {
+    profile.value = await getProfile()
+  } catch {
+    // fallback
+  }
+})
 
 const form = ref({
   name: '',
@@ -17,45 +63,46 @@ const form = ref({
 
 const isSubmitting = ref(false)
 const isSuccess = ref(false)
+const errorMsg = ref('')
 
 async function handleSubmit() {
   isSubmitting.value = true
-  // Simulasi kirim — nanti diganti fetch ke backend
-  await new Promise((r) => setTimeout(r, 1500))
-  isSubmitting.value = false
-  isSuccess.value = true
-  form.value = { name: '', email: '', subject: '', message: '' }
-  setTimeout(() => (isSuccess.value = false), 4000)
+  errorMsg.value = ''
+
+  try {
+    await sendContact(form.value)
+    isSuccess.value = true
+    form.value = { name: '', email: '', subject: '', message: '' }
+    setTimeout(() => (isSuccess.value = false), 4000)
+  } catch {
+    errorMsg.value = 'Gagal mengirim pesan. Coba lagi.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
-const contactInfo = [
-  {
-    icon: EnvelopeIcon,
-    label: 'Email',
-    value: 'email@example.com',
-    href: 'mailto:email@example.com',
-  },
-  {
-    icon: PhoneIcon,
-    label: 'WhatsApp',
-    value: '+62 8xx-xxxx-xxxx',
-    href: 'https://wa.me/628xxxxxxxxxx',
-  },
-  {
-    icon: MapPinIcon,
-    label: 'Lokasi',
-    value: 'Sumenep, Madura',
-    href: null,
-  },
-]
-
-const socialLinks = [
+const socialLinks = ref([
   {
     icon: CodeBracketSquareIcon,
     label: 'GitHub',
     href: 'https://github.com/username',
   },
-]
+])
+
+// Update social links setelah profile loaded
+onMounted(async () => {
+  try {
+    const p = await getProfile()
+    profile.value = p
+    if (p.githubUrl) {
+      socialLinks.value = [
+        { icon: CodeBracketSquareIcon, label: 'GitHub', href: p.githubUrl },
+      ]
+    }
+  } catch {
+    // fallback
+  }
+})
 </script>
 
 <template>

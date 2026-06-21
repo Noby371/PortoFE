@@ -1,40 +1,51 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { getProfile } from '../services/api'
 import { CodeBracketSquareIcon, HeartIcon } from '@heroicons/vue/24/solid'
 
 const currentYear = new Date().getFullYear()
 
-const navLinks = [
-  { label: 'About',      href: '#about'      },
-  { label: 'Skills',     href: '#skills'     },
-  { label: 'Projects',   href: '#projects'   },
-  { label: 'Experience', href: '#experience' },
-  { label: 'Contact',    href: '#contact'    },
-]
+interface Profile {
+  name: string
+  githubUrl: string | null
+  linkedinUrl: string | null
+  phone: string | null
+}
 
-const socialLinks = [
-  { label: 'GitHub',    href: 'https://github.com/username'            },
-  { label: 'LinkedIn',  href: 'https://linkedin.com/in/username'       },
-  { label: 'WhatsApp',  href: 'https://wa.me/628xxxxxxxxxx'            },
+const profile = ref<Profile | null>(null)
+
+onMounted(async () => {
+  try {
+    profile.value = await getProfile()
+  } catch {
+    // fallback
+  }
+})
+
+const navLinks = [
+  { label: 'About', href: '#about' },
+  { label: 'Skills', href: '#skills' },
+  { label: 'Projects', href: '#projects' },
+  { label: 'Experience', href: '#experience' },
+  { label: 'Contact', href: '#contact' },
 ]
 </script>
 
 <template>
   <footer class="footer">
     <div class="container">
-
       <!-- Top -->
       <div class="footer-top">
-
         <!-- Brand -->
         <div class="footer-brand">
           <a href="#" class="footer-logo">
             <span class="logo-bracket">&lt;</span>
-            FathBoy
+            {{ profile?.name ?? 'FathBoy' }}
             <span class="logo-bracket">/&gt;</span>
           </a>
           <p class="footer-tagline">
-            Fullstack Developer & IoT Engineer berbasis di Sumenep, Madura.
-            Siap membangun solusi teknologi yang berdampak nyata.
+            Fullstack Developer & IoT Engineer berbasis di Sumenep, Madura. Siap membangun solusi
+            teknologi yang berdampak nyata.
           </p>
         </div>
 
@@ -52,14 +63,23 @@ const socialLinks = [
         <div class="footer-col">
           <p class="footer-col-title">Sosial</p>
           <ul class="footer-links">
-            <li v-for="link in socialLinks" :key="link.href">
-              <a :href="link.href" target="_blank" class="footer-link">
-                {{ link.label }}
+            <li v-if="profile?.githubUrl">
+              <a :href="profile.githubUrl" target="_blank" class="footer-link"> GitHub </a>
+            </li>
+            <li v-if="profile?.linkedinUrl">
+              <a :href="profile.linkedinUrl" target="_blank" class="footer-link"> LinkedIn </a>
+            </li>
+            <li v-if="profile?.phone">
+              <a
+                :href="`https://wa.me/${profile.phone.replace(/\D/g, '')}`"
+                target="_blank"
+                class="footer-link"
+              >
+                WhatsApp
               </a>
             </li>
           </ul>
         </div>
-
       </div>
 
       <!-- Divider -->
@@ -68,7 +88,7 @@ const socialLinks = [
       <!-- Bottom -->
       <div class="footer-bottom">
         <p class="footer-copy">
-          © {{ currentYear }} FathBoy. All rights reserved.
+          © {{ currentYear }} {{ profile?.name ?? 'FathBoy' }}. All rights reserved.
         </p>
         <p class="footer-made">
           Made with
@@ -78,7 +98,6 @@ const socialLinks = [
           Vue.js & TypeScript
         </p>
       </div>
-
     </div>
   </footer>
 </template>

@@ -1,40 +1,55 @@
 <script setup lang="ts">
-import { experiences } from '../data/experience'
+import { ref, onMounted } from 'vue'
+import { getExperience } from '../services/api'
+import { useScrollReveal } from '../composables/useScrollReveal'
 import {
   BriefcaseIcon,
   AcademicCapIcon,
   MapPinIcon,
   CalendarDaysIcon,
 } from '@heroicons/vue/24/outline'
-import type { ExperienceType } from '../types'
 
-const typeConfig: Record<ExperienceType, { label: string; color: string }> = {
-  WORK: { label: 'Pekerjaan', color: '#6c63ff' },
-  INTERNSHIP: { label: 'Magang', color: '#f59e0b' },
-  ORGANIZATION: { label: 'Organisasi', color: '#10b981' },
-  FREELANCE: { label: 'Freelance', color: '#3b82f6' },
+useScrollReveal()
+
+interface Experience {
+  id: number
+  company: string
+  role: string
+  description: string
+  startDate: string
+  endDate: string | null
+  isCurrent: boolean
+  location: string | null
+  type: string
 }
 
-function formatDate(date: string | undefined): string {
+const experiences = ref<Experience[]>([])
+const isLoading = ref(true)
+
+const typeConfig: Record<string, { label: string; color: string }> = {
+  WORK:         { label: 'Pekerjaan',  color: '#6c63ff' },
+  INTERNSHIP:   { label: 'Magang',     color: '#f59e0b' },
+  ORGANIZATION: { label: 'Organisasi', color: '#10b981' },
+  FREELANCE:    { label: 'Freelance',  color: '#3b82f6' },
+}
+
+onMounted(async () => {
+  try {
+    experiences.value = await getExperience()
+  } catch {
+    experiences.value = []
+  } finally {
+    isLoading.value = false
+  }
+})
+
+function formatDate(date: string | null | undefined): string {
   if (!date) return 'Sekarang'
   const parts = date.split('-')
   const year = parts[0] ?? ''
   const month = parts[1]
   if (!month) return year
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mei',
-    'Jun',
-    'Jul',
-    'Agu',
-    'Sep',
-    'Okt',
-    'Nov',
-    'Des',
-  ]
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
   return `${months[parseInt(month) - 1]} ${year}`
 }
 </script>
@@ -42,30 +57,38 @@ function formatDate(date: string | undefined): string {
 <template>
   <section class="experience section" id="experience">
     <div class="container">
-      <p class="section-label">Perjalanan</p>
-      <h2 class="section-title">Pengalaman <span>Saya</span></h2>
-      <div class="section-divider"></div>
 
-      <div class="timeline">
-        <div v-for="(exp, i) in experiences" :key="i" class="timeline-item">
+      <p class="section-label reveal">Perjalanan</p>
+      <h2 class="section-title reveal reveal-delay-1">Pengalaman <span>Saya</span></h2>
+      <div class="section-divider reveal reveal-delay-2"></div>
+
+      <div v-if="isLoading" class="loading">Memuat data pengalaman...</div>
+
+      <div v-else class="timeline">
+        <div
+          v-for="(exp, i) in experiences"
+          :key="exp.id"
+          class="timeline-item reveal"
+          :style="{ transitionDelay: `${i * 0.1}s` }"
+        >
           <!-- Line & Dot -->
           <div class="timeline-line">
-            <div class="timeline-dot" :style="{ background: typeConfig[exp.type].color }"></div>
+            <div
+              class="timeline-dot"
+              :style="{ background: typeConfig[exp.type]?.color ?? '#6c63ff' }"
+            ></div>
             <div v-if="i < experiences.length - 1" class="timeline-connector"></div>
           </div>
 
           <!-- Content -->
           <div class="timeline-content">
+
             <!-- Header -->
             <div class="exp-header">
               <div class="exp-header-left">
                 <div class="exp-icon-wrap">
                   <component
-                    :is="
-                      exp.type === 'INTERNSHIP' || exp.type === 'WORK'
-                        ? BriefcaseIcon
-                        : AcademicCapIcon
-                    "
+                    :is="exp.type === 'INTERNSHIP' || exp.type === 'WORK' ? BriefcaseIcon : AcademicCapIcon"
                     class="exp-icon"
                   />
                 </div>
@@ -79,12 +102,12 @@ function formatDate(date: string | undefined): string {
                 <span
                   class="exp-type-badge"
                   :style="{
-                    color: typeConfig[exp.type].color,
-                    borderColor: typeConfig[exp.type].color + '44',
-                    background: typeConfig[exp.type].color + '11',
+                    color:        typeConfig[exp.type]?.color ?? '#6c63ff',
+                    borderColor: (typeConfig[exp.type]?.color ?? '#6c63ff') + '44',
+                    background:  (typeConfig[exp.type]?.color ?? '#6c63ff') + '11',
                   }"
                 >
-                  {{ typeConfig[exp.type].label }}
+                  {{ typeConfig[exp.type]?.label ?? exp.type }}
                 </span>
                 <span v-if="exp.isCurrent" class="exp-current">● Saat ini</span>
               </div>
@@ -95,9 +118,9 @@ function formatDate(date: string | undefined): string {
               <span class="meta-item">
                 <CalendarDaysIcon class="meta-icon" />
                 {{ formatDate(exp.startDate) }} —
-                {{ exp.isCurrent ? 'Sekarang' : formatDate(exp.endDate!) }}
+                {{ exp.isCurrent ? 'Sekarang' : formatDate(exp.endDate) }}
               </span>
-              <span class="meta-item">
+              <span v-if="exp.location" class="meta-item">
                 <MapPinIcon class="meta-icon" />
                 {{ exp.location }}
               </span>
@@ -105,9 +128,11 @@ function formatDate(date: string | undefined): string {
 
             <!-- Description -->
             <p class="exp-desc">{{ exp.description }}</p>
+
           </div>
         </div>
       </div>
+
     </div>
   </section>
 </template>
@@ -130,11 +155,18 @@ function formatDate(date: string | undefined): string {
   pointer-events: none;
 }
 
+.loading {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 3rem;
+}
+
 /* ── Timeline ── */
 .timeline {
   display: flex;
   flex-direction: column;
-  gap: 0;
   max-width: 800px;
   margin: 0 auto;
 }
@@ -145,7 +177,6 @@ function formatDate(date: string | undefined): string {
   gap: 1.5rem;
 }
 
-/* Line & Dot */
 .timeline-line {
   display: flex;
   flex-direction: column;
@@ -176,7 +207,6 @@ function formatDate(date: string | undefined): string {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  padding-bottom: 2.5rem;
   padding: 1.5rem;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);

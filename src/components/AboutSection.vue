@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { AboutHighlight } from '../types'
+import { ref, onMounted, computed } from 'vue'
+import { getProfile, getExperience } from '../services/api'
 import { useScrollReveal } from '../composables/useScrollReveal'
 import {
-  AcademicCapIcon,
   WrenchScrewdriverIcon,
-  SignalIcon,
+  AcademicCapIcon,
   RocketLaunchIcon,
+  BriefcaseIcon,
   MapPinIcon,
   CheckBadgeIcon,
   BuildingLibraryIcon,
@@ -15,74 +16,97 @@ import {
 
 useScrollReveal()
 
-const highlights: AboutHighlight[] = [
-  {
-    icon: AcademicCapIcon,
-    title: 'Pertukaran Mahasiswa',
-    description: 'Program PMM di Universitas Negeri Yogyakarta — pengalaman akademik lintas kampus negeri.',
-  },
-  {
-    icon: WrenchScrewdriverIcon,
-    title: 'Magang Industri',
-    description: 'Teknisi di Madura Store — diagnosis & perbaikan hardware laptop secara langsung.',
-  },
-  {
-    icon: SignalIcon,
-    title: 'Pemateri IoT',
-    description: 'Mengajar Internet of Things di ITClass Universitas Wiraraja — ESP32, MQTT, dan sensor.',
-  },
-  {
-    icon: RocketLaunchIcon,
-    title: 'Co-Founder InnoTech',
-    description: 'Mendirikan software house di Sumenep bersama tim — web, mobile, IoT, dan konsultasi IT.',
-  },
-]
+interface Profile {
+  name: string
+  title: string
+  bio: string
+  email: string
+  phone: string | null
+  location: string | null
+  githubUrl: string | null
+  linkedinUrl: string | null
+  resumeUrl: string | null
+}
 
-const infoItems = [
-  { icon: MapPinIcon,          label: 'Lokasi',      value: 'Sumenep, Madura',      green: false },
-  { icon: CheckBadgeIcon,      label: 'Status',      value: 'Tersedia untuk hire',   green: true  },
-  { icon: BuildingLibraryIcon, label: 'Universitas', value: 'Wiraraja Madura',       green: false },
-  { icon: CodeBracketIcon,     label: 'Fokus',       value: 'Fullstack & IoT',       green: false },
-]
+interface Experience {
+  id: number
+  company: string
+  role: string
+  description: string
+  type: string
+}
+
+const profile = ref<Profile | null>(null)
+const experiences = ref<Experience[]>([])
+
+onMounted(async () => {
+  try {
+    const [profileData, experienceData] = await Promise.all([getProfile(), getExperience()])
+    profile.value = profileData
+    experiences.value = experienceData.slice(0)
+  } catch {
+    console.error('Failed to fetch data')
+  }
+})
+
+const experienceIcon: Record<string, unknown> = {
+  WORK: BriefcaseIcon,
+  INTERNSHIP: WrenchScrewdriverIcon,
+  ORGANIZATION: AcademicCapIcon,
+  FREELANCE: RocketLaunchIcon,
+}
+
+const infoItems = computed(() => [
+  {
+    icon: MapPinIcon,
+    label: 'Lokasi',
+    value: profile.value?.location ?? 'Sumenep, Madura',
+    green: false,
+  },
+  { icon: CheckBadgeIcon, label: 'Status', value: 'Tersedia untuk hire', green: true },
+  { icon: BuildingLibraryIcon, label: 'Universitas', value: 'Wiraraja Madura', green: false },
+  {
+    icon: CodeBracketIcon,
+    label: 'Fokus',
+    value: profile.value?.title ?? 'Fullstack & IoT',
+    green: false,
+  },
+])
 </script>
 
 <template>
   <section class="about section" id="about">
     <div class="container">
-
       <p class="section-label reveal">Tentang Saya</p>
-      <h2 class="section-title reveal reveal-delay-1">Siapa <span>FathBoy</span>?</h2>
+      <h2 class="section-title reveal reveal-delay-1">
+        Siapa <span>{{ profile?.name ?? 'FathBoy' }}</span
+        >?
+      </h2>
       <div class="section-divider reveal reveal-delay-2"></div>
 
       <div class="about-inner">
-
         <!-- ── Left ── -->
         <div class="about-text">
           <p class="reveal-left reveal-delay-1">
-            Saya adalah mahasiswa <strong>Teknik Informatika semester 8</strong> di
-            Universitas Wiraraja Madura yang sedang menyelesaikan tugas akhir
-            tentang sistem monitoring tempat sampah berbasis IoT menggunakan
-            Fuzzy Tsukamoto.
+            Saya adalah mahasiswa <strong>Teknik Informatika semester 8</strong> di Universitas
+            Wiraraja Madura yang sedang menyelesaikan tugas akhir tentang sistem monitoring tempat
+            sampah berbasis IoT menggunakan Fuzzy Tsukamoto.
           </p>
           <p class="reveal-left reveal-delay-2">
-            Perjalanan saya di dunia teknologi tidak hanya terbatas di bangku kuliah —
-            saya telah mengikuti <strong>pertukaran mahasiswa</strong> di Universitas
-            Negeri Yogyakarta, menjalani <strong>magang</strong> sebagai teknisi laptop,
-            hingga menjadi <strong>pemateri IoT</strong> untuk mahasiswa lain.
+            {{
+              profile?.bio ??
+              'Perjalanan saya di dunia teknologi tidak hanya terbatas di bangku kuliah.'
+            }}
           </p>
           <p class="reveal-left reveal-delay-3">
-            Saat ini saya aktif mengembangkan <strong>InnoTech</strong>, software house
-            yang saya dirikan bersama rekan-rekan di Sumenep, Madura. Saya percaya
-            teknologi harus memberikan dampak nyata bagi masyarakat sekitar.
+            Saat ini saya aktif mengembangkan <strong>InnoTech</strong>, software house yang saya
+            dirikan bersama rekan-rekan di Sumenep, Madura. Saya percaya teknologi harus memberikan
+            dampak nyata bagi masyarakat sekitar.
           </p>
 
           <!-- Info Grid -->
           <div class="about-info">
-            <div
-              v-for="(item, i) in infoItems"
-              :key="i"
-              class="info-item"
-            >
+            <div v-for="(item, i) in infoItems" :key="i" class="info-item">
               <component :is="item.icon" class="info-icon" />
               <div>
                 <span class="info-label">{{ item.label }}</span>
@@ -93,30 +117,25 @@ const infoItems = [
             </div>
           </div>
 
-          <a href="/cv.pdf" target="_blank" class="btn-download">
+          <a :href="profile?.resumeUrl ?? '/cv.pdf'" target="_blank" class="btn-download">
             <ArrowDownTrayIcon class="btn-icon" />
             Download CV
           </a>
         </div>
 
         <!-- ── Right ── -->
-        <div class="about-highlights">
-          <div
-            v-for="(item, i) in highlights"
-            :key="i"
-            class="highlight-card"
-          >
+        <div class="about-highlights reveal-right reveal-delay-2">
+          <div v-for="(exp, i) in experiences" :key="exp.id" class="highlight-card">
             <div class="highlight-icon-wrap">
-              <component :is="item.icon" class="highlight-icon" />
+              <component :is="experienceIcon[exp.type] ?? BriefcaseIcon" class="highlight-icon" />
             </div>
             <div class="highlight-body">
-              <h4 class="highlight-title">{{ item.title }}</h4>
-              <p class="highlight-desc">{{ item.description }}</p>
+              <h4 class="highlight-title">{{ exp.role }}</h4>
+              <p class="highlight-desc">{{ exp.company }} — {{ exp.description }}</p>
             </div>
             <div class="highlight-number">0{{ i + 1 }}</div>
           </div>
         </div>
-
       </div>
     </div>
   </section>
@@ -129,7 +148,6 @@ const infoItems = [
   overflow: hidden;
 }
 
-/* subtle background glow */
 .about::before {
   content: '';
   position: absolute;
@@ -277,7 +295,7 @@ const infoItems = [
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  padding: 1.25rem 1.25rem 1.25rem 1.25rem;
+  padding: 1.25rem;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: 14px;
@@ -329,6 +347,7 @@ const infoItems = [
 
 .highlight-body {
   flex: 1;
+  min-width: 0;
 }
 
 .highlight-title {
@@ -342,6 +361,11 @@ const infoItems = [
   font-size: 0.83rem;
   color: var(--color-text-secondary);
   line-height: 1.6;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .highlight-number {
@@ -362,7 +386,7 @@ const infoItems = [
   }
 
   .about-info {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

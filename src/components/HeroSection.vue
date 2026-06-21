@@ -1,35 +1,149 @@
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useHireModal } from '../composables/useHireModal'
+import { getProfile } from '../services/api'
+
 const { openModal } = useHireModal()
+
+interface Profile {
+  name: string
+  title: string
+  bio: string
+  location: string | null
+  githubUrl: string | null
+  linkedinUrl: string | null
+  resumeUrl: string | null
+}
+
+const profile = ref<Profile | null>(null)
+
+onMounted(async () => {
+  try {
+    profile.value = await getProfile()
+  } catch {
+    // fallback
+  }
+})
+
 const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
+
+/* ── Typing effect ── */
+const displayedRole = ref('')
+const roleIndex = ref(0)
+let charIndex = 0
+let typeTimer: ReturnType<typeof setTimeout> | null = null
+let isDeleting = false
+
+function tick() {
+  const current = roles[roleIndex.value] ?? ''
+
+  if (!isDeleting) {
+    charIndex++
+    displayedRole.value = current.slice(0, charIndex)
+    if (charIndex === current.length) {
+      isDeleting = true
+      typeTimer = setTimeout(tick, 1800)
+      return
+    }
+    typeTimer = setTimeout(tick, 70)
+  } else {
+    charIndex--
+    displayedRole.value = current.slice(0, charIndex)
+    if (charIndex === 0) {
+      isDeleting = false
+      roleIndex.value = (roleIndex.value + 1) % roles.length
+      typeTimer = setTimeout(tick, 300)
+      return
+    }
+    typeTimer = setTimeout(tick, 35)
+  }
+}
+
+/* ── Parallax tilt ── */
+const tiltX = ref(0)
+const tiltY = ref(0)
+const glowX = ref(50)
+const glowY = ref(50)
+
+function handleMouseMove(e: MouseEvent) {
+  const target = e.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  const px = (e.clientX - rect.left) / rect.width
+  const py = (e.clientY - rect.top) / rect.height
+  tiltY.value = (px - 0.5) * 16
+  tiltX.value = (0.5 - py) * 16
+  glowX.value = px * 100
+  glowY.value = py * 100
+}
+
+function resetTilt() {
+  tiltX.value = 0
+  tiltY.value = 0
+  glowX.value = 50
+  glowY.value = 50
+}
+
+const tiltStyle = computed(() => ({
+  transform: `rotateX(${tiltX.value}deg) rotateY(${tiltY.value}deg)`,
+}))
+
+const glowStyle = computed(() => ({
+  background: `radial-gradient(circle at ${glowX.value}% ${glowY.value}%, rgba(120, 119, 255, 0.45), transparent 60%)`,
+}))
+
+onMounted(() => {
+  typeTimer = setTimeout(tick, 500)
+})
+
+onUnmounted(() => {
+  if (typeTimer) clearTimeout(typeTimer)
+})
 </script>
 
 <template>
   <section class="hero section" id="hero">
-    <div class="container hero-inner">
+    <!-- Gradient Mesh Background -->
+    <div class="mesh-bg" aria-hidden="true">
+      <div class="mesh-blob blob-1"></div>
+      <div class="mesh-blob blob-2"></div>
+      <div class="mesh-blob blob-3"></div>
+      <div class="mesh-grid"></div>
+    </div>
 
+    <div class="container hero-inner">
       <!-- Text Content -->
       <div class="hero-content">
-        <p class="hero-greeting">Halo, saya</p>
-        <h1 class="hero-name">FathBoy</h1>
-        <div class="hero-roles">
-          <span v-for="(role, i) in roles" :key="i" class="role-badge">
-            {{ role }}
-          </span>
+        <p class="hero-greeting"><span class="wave">👋</span> Halo, saya</p>
+        <h1 class="hero-name">{{ profile?.name ?? 'FathBoy' }}</h1>
+
+        <div class="hero-role-line">
+          <span class="role-prefix">&lt;</span>
+          <span class="role-typed">{{ displayedRole }}</span>
+          <span class="role-cursor">|</span>
+          <span class="role-prefix">/&gt;</span>
         </div>
+
         <p class="hero-desc">
-          Mahasiswa Teknik Informatika tingkat akhir di
-          <span class="highlight">Universitas Wiraraja Madura</span>,
-          berpengalaman dalam pengembangan sistem
-          <span class="highlight">IoT</span>,
-          <span class="highlight">web fullstack</span>, dan
-          <span class="highlight">mobile application</span>.
-          Co-founder <span class="highlight">InnoTech</span> — software house Sumenep.
+          {{ profile?.bio ?? 'Mahasiswa Teknik Informatika tingkat akhir di Universitas Wiraraja Madura, berpengalaman dalam pengembangan sistem IoT, web fullstack, dan mobile application. Co-founder InnoTech — software house Sumenep.' }}
         </p>
 
         <div class="hero-cta">
-          <a href="#projects" class="btn-primary">Lihat Projects</a>
-          <button class="btn-secondary" @click="openModal">Hire Me</button>
+          <a href="#projects" class="btn-primary">
+            <span>Lihat Projects</span>
+            <svg class="btn-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M3 8H13M13 8L9 4M13 8L9 12"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+          <button class="btn-secondary" @click="openModal">
+            <span class="dot-pulse"></span>
+            Hire Me
+          </button>
         </div>
 
         <div class="hero-stats">
@@ -52,16 +166,19 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
 
       <!-- Visual Side -->
       <div class="hero-visual">
-        <div class="avatar-wrapper">
-          <div class="avatar-ring"></div>
-          <img src="/hero.png" alt="FathBoy Profile" class="avatar-img" />
+        <div class="avatar-wrapper" @mousemove="handleMouseMove" @mouseleave="resetTilt">
+          <div class="tilt-card" :style="tiltStyle">
+            <div class="avatar-glow" :style="glowStyle"></div>
+            <div class="avatar-ring"></div>
+            <div class="avatar-ring ring-2"></div>
+            <img src="/hero.png" alt="FathBoy Profile" class="avatar-img" />
+          </div>
         </div>
 
-        <div class="float-badge badge-esp">ESP32</div>
-        <div class="float-badge badge-vue">Vue.js</div>
-        <div class="float-badge badge-node">Node.js</div>
+        <div class="float-badge badge-esp">⚡ ESP32</div>
+        <div class="float-badge badge-vue">▲ Vue.js</div>
+        <div class="float-badge badge-node">⬢ Node.js</div>
       </div>
-
     </div>
 
     <div class="scroll-indicator">
@@ -79,17 +196,74 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
   position: relative;
   padding-top: 5rem;
   overflow: hidden;
+  isolation: isolate;
 }
 
-.hero::before {
-  content: '';
+/* ── Gradient Mesh Background ── */
+.mesh-bg {
   position: absolute;
-  top: -20%;
-  right: -10%;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.mesh-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.blob-1 {
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(108, 99, 255, 0.12) 0%, transparent 70%);
-  pointer-events: none;
+  top: -15%;
+  right: -10%;
+  background: radial-gradient(circle, #6c63ff 0%, transparent 70%);
+  animation: drift1 14s ease-in-out infinite;
+}
+
+.blob-2 {
+  width: 480px;
+  height: 480px;
+  bottom: -10%;
+  left: -8%;
+  background: radial-gradient(circle, #ff63c4 0%, transparent 70%);
+  animation: drift2 18s ease-in-out infinite;
+}
+
+.blob-3 {
+  width: 420px;
+  height: 420px;
+  top: 35%;
+  left: 40%;
+  background: radial-gradient(circle, #63d9ff 0%, transparent 70%);
+  opacity: 0.35;
+  animation: drift3 16s ease-in-out infinite;
+}
+
+.mesh-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black, transparent);
+}
+
+@keyframes drift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(-40px, 40px) scale(1.1); }
+}
+@keyframes drift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(50px, -30px) scale(1.05); }
+}
+@keyframes drift3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(-30px, -40px) scale(0.9); }
 }
 
 .hero-inner {
@@ -105,34 +279,77 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
   font-size: 1.1rem;
   color: var(--color-text-secondary);
   margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wave {
+  display: inline-block;
+  animation: wave 2.5s ease-in-out infinite;
+  transform-origin: 70% 70%;
+}
+
+@keyframes wave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  10%            { transform: rotate(14deg); }
+  20%            { transform: rotate(-8deg); }
+  30%            { transform: rotate(14deg); }
+  40%            { transform: rotate(-4deg); }
+  50%            { transform: rotate(10deg); }
 }
 
 .hero-name {
-  font-size: clamp(3rem, 7vw, 5rem);
-  font-weight: 700;
+  font-size: clamp(3.2rem, 8vw, 5.5rem);
+  font-weight: 800;
   line-height: 1;
-  background: linear-gradient(135deg, #f0f0f5 0%, #6c63ff 100%);
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #ffffff 0%, #b9b3ff 45%, #6c63ff 100%);
+  background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin-bottom: 1rem;
+  animation: shimmer 6s ease-in-out infinite;
 }
 
-.hero-roles {
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+.hero-role-line {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  margin-bottom: 1.75rem;
+  min-height: 1.6rem;
 }
 
-.role-badge {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+.role-prefix {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.role-typed {
   color: var(--color-accent);
-  border: 1px solid var(--color-accent);
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  background: var(--color-accent-dim);
+  font-weight: 600;
+  background: linear-gradient(90deg, #6c63ff, #ff63c4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.role-cursor {
+  color: var(--color-accent);
+  animation: blink 0.9s steps(1) infinite;
+  font-weight: 300;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
 }
 
 .hero-desc {
@@ -141,11 +358,6 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
   line-height: 1.8;
   margin-bottom: 2rem;
   max-width: 480px;
-}
-
-.highlight {
-  color: var(--color-text-primary);
-  font-weight: 500;
 }
 
 /* ── CTA ── */
@@ -157,34 +369,70 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
 }
 
 .btn-primary {
-  padding: 0.75rem 1.75rem;
-  background: var(--color-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.85rem;
+  background: linear-gradient(135deg, #6c63ff, #8f63ff);
   color: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   font-weight: 600;
   font-size: 0.9rem;
-  transition: all var(--transition);
+  box-shadow: 0 8px 24px -8px rgba(108, 99, 255, 0.6);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .btn-primary:hover {
-  background: var(--color-accent-hover);
   color: #fff;
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px -8px rgba(108, 99, 255, 0.75);
+}
+
+.btn-arrow {
+  transition: transform 0.25s ease;
+}
+
+.btn-primary:hover .btn-arrow {
+  transform: translateX(3px);
 }
 
 .btn-secondary {
-  padding: 0.75rem 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.85rem;
   border: 1px solid var(--color-border-hover);
   color: var(--color-text-primary);
-  border-radius: 8px;
+  border-radius: 10px;
   font-weight: 600;
   font-size: 0.9rem;
-  transition: all var(--transition);
+  backdrop-filter: blur(8px);
+  transition: all 0.25s ease;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-sans);
 }
 
 .btn-secondary:hover {
   background: var(--color-bg-hover);
-  transform: translateY(-2px);
+  border-color: var(--color-accent);
+  transform: translateY(-3px);
+}
+
+.dot-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+  animation: pulse 1.8s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6); }
+  70%  { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
 }
 
 /* ── Stats ── */
@@ -200,9 +448,12 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
 }
 
 .stat-number {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--color-accent);
+  font-size: 1.7rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #6c63ff, #ff63c4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   line-height: 1;
 }
 
@@ -224,7 +475,8 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 420px;
+  height: 440px;
+  perspective: 1000px;
 }
 
 .avatar-wrapper {
@@ -236,13 +488,41 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
   justify-content: center;
 }
 
+.tilt-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease-out;
+  transform-style: preserve-3d;
+}
+
+.avatar-glow {
+  position: absolute;
+  inset: -20%;
+  border-radius: 50%;
+  opacity: 0.8;
+  transition: background 0.1s ease-out;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .avatar-ring {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid var(--color-accent);
-  opacity: 0.4;
+  border: 2px solid transparent;
+  border-image: linear-gradient(135deg, #6c63ff, #ff63c4, #63d9ff) 1;
+  opacity: 0.55;
   animation: rotate 8s linear infinite;
+}
+
+.ring-2 {
+  inset: -18px;
+  opacity: 0.3;
+  animation: rotate 12s linear infinite reverse;
 }
 
 .avatar-ring::before {
@@ -255,6 +535,7 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
   background: var(--color-accent);
   border-radius: 50%;
   transform: translateX(-50%);
+  box-shadow: 0 0 12px 2px var(--color-accent);
 }
 
 @keyframes rotate {
@@ -263,30 +544,35 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
 }
 
 .avatar-img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid var(--color-border);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.5);
 }
 
 /* ── Floating Badges ── */
 .float-badge {
   position: absolute;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 0.4rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
   border-radius: 999px;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.5);
   animation: float 3s ease-in-out infinite;
 }
 
-.badge-esp  { top: 10%;   left: 0%;   animation-delay: 0s; }
-.badge-vue  { top: 60%;   right: 0%;  animation-delay: 1s; }
-.badge-node { bottom: 8%; left: 15%;  animation-delay: 2s; }
+.badge-esp  { top: 8%;    left: -2%;  animation-delay: 0s; }
+.badge-vue  { top: 58%;   right: -4%; animation-delay: 1s; }
+.badge-node { bottom: 5%; left: 12%;  animation-delay: 2s; }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -329,13 +615,29 @@ const roles = ['Fullstack Developer', 'IoT Engineer', 'Freelancer']
     text-align: center;
   }
 
-  .hero-roles { justify-content: center; }
-  .hero-desc  { margin: 0 auto 2rem; }
-  .hero-cta   { justify-content: center; }
-  .hero-stats { justify-content: center; }
+  .hero-role-line { justify-content: center; }
+  .hero-desc      { margin: 0 auto 2rem; }
+  .hero-cta       { justify-content: center; }
+  .hero-stats     { justify-content: center; }
 
-  .hero-visual     { height: 300px; }
-.avatar-wrapper  { width: 260px; height: 260px; }
-.avatar-img      { width: 220px; height: 220px; }
+  .hero-visual    { height: 300px; }
+  .avatar-wrapper { width: 260px; height: 260px; }
+
+  .blob-1, .blob-2, .blob-3 {
+    filter: blur(60px);
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesh-blob,
+  .avatar-ring,
+  .float-badge,
+  .wave,
+  .hero-name,
+  .scroll-line,
+  .dot-pulse {
+    animation: none !important;
+  }
 }
 </style>

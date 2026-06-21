@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useHireModal } from '../composables/useHireModal'
-import {
-  XMarkIcon,
-  PaperAirplaneIcon,
-  BriefcaseIcon,
-} from '@heroicons/vue/24/outline'
+import { sendContact } from '../services/api'
+import { XMarkIcon, PaperAirplaneIcon, BriefcaseIcon } from '@heroicons/vue/24/outline'
 
 const { isOpen, closeModal } = useHireModal()
 
@@ -19,25 +16,33 @@ const form = ref({
 
 const isSubmitting = ref(false)
 const isSuccess = ref(false)
+const errorMsg = ref('')
 
-const projectTypes = [
-  'Web Development',
-  'Mobile App',
-  'IoT System',
-  'Konsultasi IT',
-  'Lainnya',
-]
+const projectTypes = ['Web Development', 'Mobile App', 'IoT System', 'Konsultasi IT', 'Lainnya']
 
 async function handleSubmit() {
   isSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 1500))
-  isSubmitting.value = false
-  isSuccess.value = true
-  form.value = { name: '', email: '', budget: '', type: '', message: '' }
-  setTimeout(() => {
-    isSuccess.value = false
-    closeModal()
-  }, 3000)
+  errorMsg.value = ''
+
+  try {
+    await sendContact({
+      name: form.value.name,
+      email: form.value.email,
+      subject: `[Hire] ${form.value.type} — Budget: ${form.value.budget || 'Tidak disebutkan'}`,
+      message: form.value.message,
+    })
+    isSuccess.value = true
+    form.value = { name: '', email: '', budget: '', type: '', message: '' }
+    setTimeout(() => {
+      isSuccess.value = false
+      closeModal()
+    }, 3000)
+  } catch {
+    errorMsg.value = 'Gagal mengirim pesan. Coba lagi.'
+    setTimeout(() => (errorMsg.value = ''), 3000)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function handleBackdrop(e: MouseEvent) {
@@ -50,13 +55,8 @@ function handleBackdrop(e: MouseEvent) {
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div
-        v-if="isOpen"
-        class="modal-backdrop"
-        @click="handleBackdrop"
-      >
+      <div v-if="isOpen" class="modal-backdrop" @click="handleBackdrop">
         <div class="modal-box">
-
           <!-- Header -->
           <div class="modal-header">
             <div class="modal-title-wrap">
@@ -82,7 +82,8 @@ function handleBackdrop(e: MouseEvent) {
 
           <!-- Form -->
           <form v-else class="modal-form" @submit.prevent="handleSubmit">
-
+            <!-- Error -->
+            <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Nama Lengkap</label>
@@ -111,11 +112,7 @@ function handleBackdrop(e: MouseEvent) {
                 <label class="form-label">Jenis Project</label>
                 <select v-model="form.type" class="form-input" required>
                   <option value="" disabled>Pilih jenis project</option>
-                  <option
-                    v-for="type in projectTypes"
-                    :key="type"
-                    :value="type"
-                  >
+                  <option v-for="type in projectTypes" :key="type" :value="type">
                     {{ type }}
                   </option>
                 </select>
@@ -143,9 +140,7 @@ function handleBackdrop(e: MouseEvent) {
             </div>
 
             <div class="form-actions">
-              <button type="button" class="btn-cancel" @click="closeModal">
-                Batal
-              </button>
+              <button type="button" class="btn-cancel" @click="closeModal">Batal</button>
               <button type="submit" class="btn-submit" :disabled="isSubmitting">
                 <span v-if="isSubmitting" class="spinner"></span>
                 <template v-else>
@@ -154,7 +149,6 @@ function handleBackdrop(e: MouseEvent) {
                 </template>
               </button>
             </div>
-
           </form>
         </div>
       </div>
@@ -371,18 +365,30 @@ select.form-input {
   height: 1rem;
 }
 
+.error-msg {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
 /* Spinner */
 .spinner {
   width: 1rem;
   height: 1rem;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Success ── */

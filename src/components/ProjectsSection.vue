@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { getProjects } from '../services/api'
 import { useScrollReveal } from '../composables/useScrollReveal'
 import {
@@ -21,9 +21,11 @@ interface Project {
   title: string
   slug: string
   description: string
+  longDesc: string | null
   type: string
   status: string
   techStack: string[]
+  imageUrl: string | null
   repoUrl: string | null
   demoUrl: string | null
   featured: boolean
@@ -92,7 +94,6 @@ async function withRetry<T>(
 
 // Validasi response API - struktur: { data: [], meta: {} }
 function validateResponse(response: unknown): Project[] {
-  console.log('📡 API Response:', response)
   const res = response as Record<string, unknown>
 
   // Response dari getProjects: { data: [], meta: {} }
@@ -105,8 +106,8 @@ function validateResponse(response: unknown): Project[] {
     return response as Project[]
   }
 
-  console.error('Unexpected response structure:', response)
-  return []
+  // Jangan kembalikan [] diam-diam, supaya UI error + retry yang muncul
+  throw new Error('Format respons API tidak dikenali.')
 }
 
 // Fetch data utama
@@ -131,16 +132,34 @@ async function fetchProjects(showLoading = true) {
 
   } catch (error) {
     console.error('❌ Failed to fetch projects:', error)
-    allProjects.value = []
-    isError.value = true
-    errorMessage.value = error instanceof Error
-      ? error.message
-      : 'Gagal memuat data project. Periksa koneksi internet Anda.'
+    // Refresh latar belakang (misal pas tab kembali aktif) tidak boleh
+    // menghapus data yang sudah tampil — biarkan data lama tetap ada.
+    if (showLoading) {
+      allProjects.value = []
+      isError.value = true
+      errorMessage.value = error instanceof Error
+        ? error.message
+        : 'Gagal memuat data project. Periksa koneksi internet Anda.'
+    }
   } finally {
     if (showLoading) {
       isLoading.value = false
     }
     isRetrying.value = false
+  }
+}
+
+// Refetch diam-diam saat tab kembali aktif, supaya konten tetap sinkron
+// dengan perubahan data di halaman admin (misal di tab lain).
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    fetchProjects(false)
+  }
+}
+
+function handleFocus() {
+  if (document.visibilityState !== 'hidden') {
+    fetchProjects(false)
   }
 }
 
@@ -155,6 +174,13 @@ async function handleRetry() {
 
 onMounted(async () => {
   await fetchProjects(true)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('focus', handleFocus)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('focus', handleFocus)
 })
 
 // ─── COMPUTED ──────────────────────────────────────────
@@ -245,6 +271,11 @@ if (import.meta.env.DEV) {
         >
           <!-- Featured Badge -->
           <div v-if="project.featured" class="featured-badge">⭐ Featured</div>
+
+          <!-- Card Image -->
+          <div v-if="project.imageUrl" class="card-image">
+            <img :src="project.imageUrl" :alt="project.title" loading="lazy" />
+          </div>
 
           <!-- Card Top -->
           <div class="card-top">
@@ -489,6 +520,37 @@ if (import.meta.env.DEV) {
   font-weight: 600;
   padding: 0.2rem 0.75rem;
   border-radius: 0 0 8px 8px;
+  z-index: 1;
+}
+
+/* Card Image */
+.card-image {
+  position: relative;
+  margin: -1.5rem -1.5rem 0;
+  height: 180px;
+  overflow: hidden;
+  border-radius: 15px 15px 0 0;
+  background: var(--color-bg-hover);
+}
+
+.card-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(22, 22, 31, 0.6));
+  pointer-events: none;
+}
+
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s ease;
+}
+
+.project-card:hover .card-image img {
+  transform: scale(1.05);
 }
 
 /* Card Top */

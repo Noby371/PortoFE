@@ -11,8 +11,10 @@ const { openModal } = useHireModal()
 const navLinks = [
   { label: 'About',      href: '#about',      id: 'about'      },
   { label: 'Skills',     href: '#skills',     id: 'skills'     },
+  { label: 'Education',  href: '#education',  id: 'education'  },
   { label: 'Projects',   href: '#projects',   id: 'projects'   },
   { label: 'Experience', href: '#experience', id: 'experience' },
+  { label: 'Certificates', href: '#certificates', id: 'certificates' },
   { label: 'Contact',    href: '#contact',    id: 'contact'    },
 ]
 

@@ -161,10 +161,15 @@ onMounted(async () => {
 
           <!-- Success State -->
           <div v-if="isSuccess" class="success-msg">
-            <span class="success-icon">✅</span>
+            <div class="success-check">
+              <svg viewBox="0 0 52 52" class="success-check-svg" aria-hidden="true">
+                <circle class="check-circle" cx="26" cy="26" r="24" fill="none" />
+                <path class="check-mark" fill="none" d="M14 27l8 8 16-16" />
+              </svg>
+            </div>
             <div>
               <p class="success-title">Pesan terkirim!</p>
-              <p class="success-desc">Saya akan membalas secepatnya.</p>
+              <p class="success-desc">Terima kasih sudah menghubungi. Saya akan membalas secepatnya.</p>
             </div>
           </div>
 
@@ -471,27 +476,105 @@ onMounted(async () => {
 .success-msg {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 2rem;
-  background: rgba(74, 222, 128, 0.08);
-  border: 1px solid rgba(74, 222, 128, 0.3);
-  border-radius: 12px;
+  gap: 1.25rem;
+  padding: 2.5rem 2rem;
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.07), rgba(108, 99, 255, 0.05));
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: 16px;
+  animation: successIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.success-icon {
-  font-size: 2rem;
+.success-check {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.success-check::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(74, 222, 128, 0.4), transparent 70%);
+  filter: blur(10px);
+  animation: successPulse 2.2s ease-out infinite;
+}
+
+.success-check-svg {
+  position: relative;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+}
+
+.check-circle {
+  stroke: #4ade80;
+  stroke-width: 3;
+  stroke-linecap: round;
+  fill: none;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  animation: drawStroke 0.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.check-mark {
+  stroke: #4ade80;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: drawStroke 0.4s cubic-bezier(0.65, 0, 0.35, 1) 0.55s forwards;
+}
+
+@keyframes drawStroke {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes successPulse {
+  0%   { transform: scale(0.7); opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes successIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .success-title {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: #4ade80;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.3rem;
 }
 
 .success-desc {
   font-size: 0.875rem;
   color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .success-msg,
+  .check-circle,
+  .check-mark,
+  .success-check::before {
+    animation: none !important;
+  }
+  .check-circle,
+  .check-mark {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* ── Responsive ── */

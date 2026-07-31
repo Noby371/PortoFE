@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   CloudArrowUpIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  ArrowUpTrayIcon,
+  UserCircleIcon,
 } from '@heroicons/vue/24/outline'
-import api from '../../services/api'
+import api, { resolveAssetUrl } from '../../services/api'
 
 interface Profile {
   id?: number
@@ -38,6 +40,50 @@ const isLoading = ref(true)
 const isSaving = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
+
+// ── Avatar upload ─────────────────────────────────────────
+const avatarFile = ref<File | null>(null)
+const isUploadingAvatar = ref(false)
+const avatarMsg = ref('')
+const avatarError = ref('')
+
+const avatarPreview = computed(() => {
+  if (avatarFile.value) {
+    return URL.createObjectURL(avatarFile.value)
+  }
+  return resolveAssetUrl(form.value.avatarUrl)
+})
+
+function handleAvatarSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  avatarFile.value = file
+  avatarError.value = ''
+  avatarMsg.value = 'Klik "Ganti Foto" untuk menyimpan gambar baru.'
+}
+
+async function handleAvatarUpload() {
+  if (!avatarFile.value) return
+  isUploadingAvatar.value = true
+  avatarMsg.value = ''
+  avatarError.value = ''
+
+  try {
+    const fd = new FormData()
+    fd.append('avatar', avatarFile.value)
+    const res = await api.post('/profile/avatar', fd)
+    form.value.avatarUrl = res.data.avatarUrl
+    avatarFile.value = null
+    avatarMsg.value = 'Foto profil berhasil diunggah!'
+  } catch (err) {
+    avatarError.value =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal mengunggah foto. Pastikan file JPG/PNG/WebP maks 5MB.'
+  } finally {
+    isUploadingAvatar.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -74,6 +120,57 @@ async function handleSave() {
     <div v-if="isLoading" class="loading">Memuat data profil...</div>
 
     <form v-else class="profile-form" @submit.prevent="handleSave">
+
+      <!-- Section: Foto Profil -->
+      <div class="form-section avatar-section">
+        <h3 class="form-section-title">Foto Profil</h3>
+
+        <div class="avatar-row">
+          <div class="avatar-preview">
+            <img
+              v-if="avatarPreview"
+              :src="avatarPreview"
+              alt="Preview foto profil"
+              class="avatar-img"
+            />
+            <UserCircleIcon v-else class="avatar-placeholder" />
+          </div>
+
+          <div class="avatar-controls">
+            <p class="avatar-hint">
+              Foto akan disimpan di server. Saat diganti, foto lama otomatis dihapus.
+              Format: JPG / PNG / WebP (maks 5MB).
+            </p>
+
+            <label class="avatar-file-btn">
+              <ArrowUpTrayIcon class="btn-icon" />
+              Pilih Foto
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="avatar-file-input"
+                @change="handleAvatarSelect"
+              />
+            </label>
+
+            <button
+              type="button"
+              class="btn-save avatar-upload-btn"
+              :disabled="!avatarFile || isUploadingAvatar"
+              @click="handleAvatarUpload"
+            >
+              <span v-if="isUploadingAvatar" class="spinner"></span>
+              <template v-else>
+                <CloudArrowUpIcon class="btn-icon" />
+                {{ avatarFile ? 'Ganti Foto' : 'Ganti Foto' }}
+              </template>
+            </button>
+
+            <p v-if="avatarMsg" class="avatar-msg avatar-msg-success">{{ avatarMsg }}</p>
+            <p v-else-if="avatarError" class="avatar-msg avatar-msg-error">{{ avatarError }}</p>
+          </div>
+        </div>
+      </div>
 
       <!-- Section: Identitas -->
       <div class="form-section">
@@ -166,9 +263,9 @@ async function handleSave() {
             <label class="form-label">Avatar URL</label>
             <input
               v-model="form.avatarUrl"
-              type="url"
+              type="text"
               class="form-input"
-              placeholder="https://example.com/avatar.jpg"
+              placeholder="/uploads/avatars/xxx.jpg atau https://..."
             />
           </div>
           <div class="form-group">
@@ -220,6 +317,105 @@ async function handleSave() {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-size: 0.875rem;
+}
+
+/* ── Avatar Upload ─────────────────────────────────────── */
+.avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.avatar-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-accent-dim);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-hover);
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-placeholder {
+  width: 3rem;
+  height: 3rem;
+  color: var(--color-text-muted);
+}
+
+.avatar-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 240px;
+}
+
+.avatar-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.avatar-file-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.avatar-file-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.avatar-file-input {
+  display: none;
+}
+
+.avatar-upload-btn {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.85rem;
+}
+
+.avatar-upload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.avatar-msg {
+  font-size: 0.8rem;
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.avatar-msg-success {
+  color: #4ade80;
+}
+
+.avatar-msg-error {
+  color: #ef4444;
 }
 
 /* Form */

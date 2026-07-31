@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   PlusIcon,
   PencilSquareIcon,
@@ -7,8 +7,11 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   XMarkIcon,
+  ArrowUpTrayIcon,
+  CloudArrowUpIcon,
+  PhotoIcon,
 } from '@heroicons/vue/24/outline'
-import api from '../../services/api'
+import api, { resolveAssetUrl } from '../../services/api'
 
 interface Certificate {
   id: number
@@ -27,6 +30,19 @@ const errorMsg = ref('')
 const isModalOpen = ref(false)
 const isEditing = ref(false)
 const isSaving = ref(false)
+
+// ── Upload gambar sertifikat ────────────────────────────
+const certImageFile = ref<File | null>(null)
+const isUploadingImage = ref(false)
+const imageMsg = ref('')
+const imageError = ref('')
+
+const certImagePreview = computed(() => {
+  if (certImageFile.value) {
+    return URL.createObjectURL(certImageFile.value)
+  }
+  return resolveAssetUrl(form.value.imageUrl)
+})
 
 const emptyForm = {
   id: 0,
@@ -64,7 +80,7 @@ function openEdit(cert: Certificate) {
   isEditing.value = true
   form.value = {
     ...cert,
-    issuedAt:      cert.issuedAt.slice(0, 10),
+    issuedAt:      cert.issuedAt ? cert.issuedAt.slice(0, 10) : '',
     expiredAt:     cert.expiredAt ? cert.expiredAt.slice(0, 10) : '',
     credentialUrl: cert.credentialUrl ?? '',
     imageUrl:      cert.imageUrl ?? '',
@@ -74,6 +90,37 @@ function openEdit(cert: Certificate) {
 
 function closeModal() {
   isModalOpen.value = false
+}
+
+function handleImageSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  certImageFile.value = file
+  imageError.value = ''
+  imageMsg.value = 'Klik "Ganti Gambar" untuk menyimpan ke server.'
+}
+
+async function handleImageUpload() {
+  if (!certImageFile.value) return
+  isUploadingImage.value = true
+  imageMsg.value = ''
+  imageError.value = ''
+
+  try {
+    const fd = new FormData()
+    fd.append('image', certImageFile.value)
+    const res = await api.post('/uploads/certificate', fd)
+    form.value.imageUrl = res.data.url
+    certImageFile.value = null
+    imageMsg.value = 'Gambar berhasil diunggah!'
+  } catch (err) {
+    imageError.value =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal mengunggah gambar. Pastikan file JPG/PNG/WebP maks 5MB.'
+  } finally {
+    isUploadingImage.value = false
+  }
 }
 
 async function handleSave() {
@@ -121,8 +168,11 @@ function showSuccess(msg: string) {
   setTimeout(() => (successMsg.value = ''), 4000)
 }
 
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('id-ID', {
+function formatDate(date: string | null) {
+  if (!date) return '—'
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('id-ID', {
     day: 'numeric', month: 'long', year: 'numeric'
   })
 }
@@ -254,8 +304,48 @@ function formatDate(date: string) {
             </div>
 
             <div class="form-group">
-              <label class="form-label">URL Gambar Sertifikat</label>
-              <input v-model="form.imageUrl" type="url" class="form-input" placeholder="https://..." />
+              <label class="form-label">Gambar Sertifikat</label>
+
+              <div class="cert-image-upload">
+                <div class="cert-upload-preview">
+                  <img
+                    v-if="certImagePreview"
+                    :src="certImagePreview"
+                    alt="Preview sertifikat"
+                    class="cert-upload-img"
+                  />
+                  <PhotoIcon v-else class="cert-upload-placeholder" />
+                </div>
+
+                <div class="cert-upload-controls">
+                  <label class="cert-upload-btn">
+                    <ArrowUpTrayIcon class="btn-icon" />
+                    Pilih Gambar
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      class="cert-upload-input"
+                      @change="handleImageSelect"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    class="btn-submit cert-upload-btn"
+                    :disabled="!certImageFile || isUploadingImage"
+                    @click="handleImageUpload"
+                  >
+                    <span v-if="isUploadingImage" class="spinner"></span>
+                    <template v-else>
+                      <CloudArrowUpIcon class="btn-icon" />
+                      {{ certImageFile ? 'Ganti Gambar' : 'Ganti Gambar' }}
+                    </template>
+                  </button>
+
+                  <p v-if="imageMsg" class="cert-upload-msg success">{{ imageMsg }}</p>
+                  <p v-else-if="imageError" class="cert-upload-msg error">{{ imageError }}</p>
+                </div>
+              </div>
             </div>
 
             <div class="modal-actions">
@@ -604,6 +694,100 @@ function formatDate(date: string) {
 .form-input:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-dim);
+}
+
+/* Upload gambar sertifikat */
+.cert-image-upload {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.cert-upload-preview {
+  width: 110px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-hover);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cert-upload-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cert-upload-placeholder {
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-text-muted);
+}
+
+.cert-upload-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.cert-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  justify-content: center;
+}
+
+.cert-upload-btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.cert-upload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cert-upload-btn.btn-submit {
+  color: #fff;
+  background: var(--color-accent);
+  border: none;
+  font-weight: 600;
+}
+
+.cert-upload-input {
+  display: none;
+}
+
+.cert-upload-msg {
+  font-size: 0.75rem;
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.cert-upload-msg.success {
+  color: #4ade80;
+}
+
+.cert-upload-msg.error {
+  color: #ef4444;
 }
 
 .modal-actions {

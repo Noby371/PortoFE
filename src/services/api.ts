@@ -1,11 +1,25 @@
 import axios from 'axios'
 
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: API_BASE,
+  // Jangan paksa Content-Type di level instance. Axios otomatis set
+  // application/json untuk objek JSON, dan multipart/form-data (dengan
+  // boundary) saat mengirim FormData. Memaksa application/json di sini
+  // bikin upload file gagal (multer tidak bisa parse).
 })
+
+// Ubah path lokal (/uploads/...) menjadi URL absolut ke backend.
+// URL eksternal (https://...) dibiarkan apa adanya.
+export function resolveAssetUrl(path: string | null | undefined): string | null {
+  if (!path) return null
+  if (path.startsWith('/uploads')) {
+    const origin = API_BASE.replace(/\/api\/v1\/?$/, '')
+    return `${origin}${path}`
+  }
+  return path
+}
 
 // ── Request Interceptor — tambahkan token otomatis ─────────────────────────
 api.interceptors.request.use((config) => {
@@ -44,7 +58,8 @@ export async function getProjects(params?: {
   page?: number
   limit?: number
   type?: string
-  featured?: boolean
+  status?: string
+  featured?: string
 }) {
   const res = await api.get('/projects', { params })
   return res.data

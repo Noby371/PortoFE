@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useHireModal } from '../composables/useHireModal'
-import { getProfile } from '../services/api'
+import { getProfile, resolveAssetUrl } from '../services/api'
 
 const { openModal } = useHireModal()
 
@@ -10,12 +10,17 @@ interface Profile {
   title: string
   bio: string
   location: string | null
+  avatarUrl: string | null
   githubUrl: string | null
   linkedinUrl: string | null
   resumeUrl: string | null
 }
 
 const profile = ref<Profile | null>(null)
+
+const avatarSrc = computed(() =>
+  resolveAssetUrl(profile.value?.avatarUrl) ?? '/hero.png'
+)
 
 onMounted(async () => {
   try {
@@ -60,36 +65,6 @@ function tick() {
 }
 
 /* ── Parallax tilt ── */
-const tiltX = ref(0)
-const tiltY = ref(0)
-const glowX = ref(50)
-const glowY = ref(50)
-
-function handleMouseMove(e: MouseEvent) {
-  const target = e.currentTarget as HTMLElement
-  const rect = target.getBoundingClientRect()
-  const px = (e.clientX - rect.left) / rect.width
-  const py = (e.clientY - rect.top) / rect.height
-  tiltY.value = (px - 0.5) * 16
-  tiltX.value = (0.5 - py) * 16
-  glowX.value = px * 100
-  glowY.value = py * 100
-}
-
-function resetTilt() {
-  tiltX.value = 0
-  tiltY.value = 0
-  glowX.value = 50
-  glowY.value = 50
-}
-
-const tiltStyle = computed(() => ({
-  transform: `rotateX(${tiltX.value}deg) rotateY(${tiltY.value}deg)`,
-}))
-
-const glowStyle = computed(() => ({
-  background: `radial-gradient(circle at ${glowX.value}% ${glowY.value}%, rgba(120, 119, 255, 0.45), transparent 60%)`,
-}))
 
 onMounted(() => {
   typeTimer = setTimeout(tick, 500)
@@ -108,6 +83,7 @@ onUnmounted(() => {
       <div class="mesh-blob blob-2"></div>
       <div class="mesh-blob blob-3"></div>
       <div class="mesh-grid"></div>
+      <div class="mesh-noise"></div>
     </div>
 
     <div class="container hero-inner">
@@ -166,18 +142,7 @@ onUnmounted(() => {
 
       <!-- Visual Side -->
       <div class="hero-visual">
-        <div class="avatar-wrapper" @mousemove="handleMouseMove" @mouseleave="resetTilt">
-          <div class="tilt-card" :style="tiltStyle">
-            <div class="avatar-glow" :style="glowStyle"></div>
-            <div class="avatar-ring"></div>
-            <div class="avatar-ring ring-2"></div>
-            <img src="/hero.png" alt="FathBoy Profile" class="avatar-img" />
-          </div>
-        </div>
-
-        <div class="float-badge badge-esp">⚡ ESP32</div>
-        <div class="float-badge badge-vue">▲ Vue.js</div>
-        <div class="float-badge badge-node">⬢ Node.js</div>
+        <img :src="avatarSrc" alt="FathBoy Profile" class="hero-img" />
       </div>
     </div>
 
@@ -251,6 +216,15 @@ onUnmounted(() => {
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black, transparent);
+}
+
+.mesh-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
 }
 
 @keyframes drift1 {
@@ -469,114 +443,24 @@ onUnmounted(() => {
   background: var(--color-border);
 }
 
-/* ── Visual ── */
+/* ── Visual Side ── */
 .hero-visual {
   position: relative;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 440px;
-  perspective: 1000px;
-}
-
-.avatar-wrapper {
-  position: relative;
-  width: 340px;
-  height: 340px;
-  display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.tilt-card {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s ease-out;
-  transform-style: preserve-3d;
-}
-
-.avatar-glow {
-  position: absolute;
-  inset: -20%;
-  border-radius: 50%;
-  opacity: 0.8;
-  transition: background 0.1s ease-out;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.avatar-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  border-image: linear-gradient(135deg, #6c63ff, #ff63c4, #63d9ff) 1;
-  opacity: 0.55;
-  animation: rotate 8s linear infinite;
-}
-
-.ring-2 {
-  inset: -18px;
-  opacity: 0.3;
-  animation: rotate 12s linear infinite reverse;
-}
-
-.avatar-ring::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  background: var(--color-accent);
-  border-radius: 50%;
-  transform: translateX(-50%);
-  box-shadow: 0 0 12px 2px var(--color-accent);
-}
-
-@keyframes rotate {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-.avatar-img {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  border: 2px solid var(--color-border);
-  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.5);
-}
-
-/* ── Floating Badges ── */
-.float-badge {
-  position: absolute;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.45rem 1rem;
-  border-radius: 999px;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.5);
-  animation: float 3s ease-in-out infinite;
-}
-
-.badge-esp  { top: 8%;    left: -2%;  animation-delay: 0s; }
-.badge-vue  { top: 58%;   right: -4%; animation-delay: 1s; }
-.badge-node { bottom: 5%; left: 12%;  animation-delay: 2s; }
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-10px); }
+.hero-img {
+  display: block;
+  height: 90vh;
+  width: auto;
+  max-width: 100%;
+  /* Fade halus di bagian bawah agar tidak terlihat terpotong */
+  -webkit-mask-image: linear-gradient(to bottom, black 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 78%, transparent 100%);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 /* ── Scroll Indicator ── */
@@ -620,9 +504,7 @@ onUnmounted(() => {
   .hero-cta       { justify-content: center; }
   .hero-stats     { justify-content: center; }
 
-  .hero-visual    { height: 300px; }
-  .avatar-wrapper { width: 260px; height: 260px; }
-
+  .hero-img { height: 55vh; max-height: 520px; }
   .blob-1, .blob-2, .blob-3 {
     filter: blur(60px);
     opacity: 0.4;
@@ -631,8 +513,6 @@ onUnmounted(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .mesh-blob,
-  .avatar-ring,
-  .float-badge,
   .wave,
   .hero-name,
   .scroll-line,

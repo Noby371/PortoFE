@@ -3,11 +3,12 @@ import { ref, onMounted, computed } from 'vue'
 import {
   EnvelopeIcon,
   EnvelopeOpenIcon,
-  // TrashIcon,
+  TrashIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/vue/24/outline'
 import api from '../../services/api'
+import { useMessagesStore } from '../../stores/messages'
 
 interface Message {
   id: number
@@ -25,6 +26,8 @@ const successMsg = ref('')
 const errorMsg = ref('')
 const selectedMessage = ref<Message | null>(null)
 
+const messagesStore = useMessagesStore()
+
 const unreadCount = computed(() => messages.value.filter((m) => !m.isRead).length)
 
 onMounted(fetchMessages)
@@ -34,6 +37,7 @@ async function fetchMessages() {
   try {
     const res = await api.get('/contact/messages?limit=100')
     messages.value = res.data.data
+    messagesStore.refresh()
   } catch {
     errorMsg.value = 'Gagal memuat pesan.'
   } finally {
@@ -52,8 +56,26 @@ async function markRead(msg: Message) {
   try {
     await api.patch(`/contact/messages/${msg.id}/read`)
     msg.isRead = true
+    messagesStore.refresh()
   } catch {
     // silent fail
+  }
+}
+
+async function deleteMessage(msg: Message) {
+  if (!confirm(`Hapus pesan dari "${msg.name}"?`)) return
+  try {
+    await api.delete(`/contact/messages/${msg.id}`)
+    messages.value = messages.value.filter((m) => m.id !== msg.id)
+    if (selectedMessage.value?.id === msg.id) {
+      selectedMessage.value = null
+    }
+    messagesStore.refresh()
+    successMsg.value = 'Pesan berhasil dihapus.'
+    setTimeout(() => (successMsg.value = ''), 4000)
+  } catch {
+    errorMsg.value = 'Gagal menghapus pesan.'
+    setTimeout(() => (errorMsg.value = ''), 4000)
   }
 }
 
@@ -174,12 +196,18 @@ function formatDate(date: string) {
           </div>
 
           <!-- Reply Button -->
-          <a
-            :href="`mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`"
-            class="btn-reply"
-          >
-            Balas via Email ↗
-          </a>
+          <div class="detail-actions">
+            <a
+              :href="`mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`"
+              class="btn-reply"
+            >
+              Balas via Email ↗
+            </a>
+            <button class="btn-delete" @click="deleteMessage(selectedMessage)">
+              <TrashIcon class="btn-delete-icon" />
+              Hapus
+            </button>
+          </div>
         </div>
       </div>
 
@@ -521,6 +549,40 @@ function formatDate(date: string) {
   background: var(--color-accent-hover);
   color: #fff;
   transform: translateY(-1px);
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1.25rem;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  transform: translateY(-1px);
+}
+
+.btn-delete-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Transitions */

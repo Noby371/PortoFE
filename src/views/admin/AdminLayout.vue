@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useMessagesStore } from '../../stores/messages'
 import {
   HomeIcon,
   UserIcon,
@@ -14,13 +15,19 @@ import {
   ArrowRightStartOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
+  BellAlertIcon,
+  InboxArrowDownIcon,
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const messages = useMessagesStore()
 
 const isSidebarOpen = ref(false)
+const showToast = ref(false)
+let prevUnread = 0
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const navItems = [
   { label: 'Dashboard',    name: 'admin-dashboard',    icon: HomeIcon            },
@@ -33,13 +40,47 @@ const navItems = [
   { label: 'Messages',     name: 'admin-messages',     icon: EnvelopeIcon        },
 ]
 
+async function checkMessages() {
+  const prev = prevUnread
+  await messages.refresh()
+  if (messages.unreadCount > prev && messages.unreadCount > 0) {
+    showToast.value = true
+    setTimeout(() => (showToast.value = false), 7000)
+  }
+  prevUnread = messages.unreadCount
+}
+
+function startPolling() {
+  if (pollTimer) return
+  pollTimer = setInterval(checkMessages, 20000)
+}
+
+function handleVisibility() {
+  if (document.visibilityState === 'visible') {
+    checkMessages()
+  }
+}
+
 onMounted(async () => {
   try {
     await auth.fetchMe()
   } catch {
     auth.logout()
     router.push({ name: 'admin-login' })
+    return
   }
+
+  await messages.refresh()
+  prevUnread = messages.unreadCount
+  startPolling()
+  document.addEventListener('visibilitychange', handleVisibility)
+  window.addEventListener('focus', handleVisibility)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', handleVisibility)
+  window.removeEventListener('focus', handleVisibility)
 })
 
 async function handleLogout() {
@@ -88,6 +129,12 @@ async function handleLogout() {
         >
           <component :is="item.icon" class="nav-icon" />
           {{ item.label }}
+          <span
+            v-if="item.name === 'admin-messages' && messages.unreadCount > 0"
+            class="nav-badge"
+          >
+            {{ messages.unreadCount }}
+          </span>
         </RouterLink>
       </nav>
 
@@ -97,6 +144,28 @@ async function handleLogout() {
         Logout
       </button>
     </aside>
+
+    <!-- ── Toast: Pesan Baru ── -->
+    <Transition name="toast">
+      <div v-if="showToast && messages.latest" class="message-toast">
+        <div class="toast-icon">
+          <BellAlertIcon class="toast-icon-svg" />
+        </div>
+        <div class="toast-body">
+          <p class="toast-title">Pesan baru!</p>
+          <p class="toast-text">
+            <strong>{{ messages.latest.name }}</strong> — {{ messages.latest.subject }}
+          </p>
+        </div>
+        <RouterLink :to="{ name: 'admin-messages' }" class="toast-link" @click="showToast = false">
+          <InboxArrowDownIcon class="toast-link-icon" />
+          Buka
+        </RouterLink>
+        <button class="toast-close" @click="showToast = false">
+          <XMarkIcon class="icon" />
+        </button>
+      </div>
+    </Transition>
 
     <!-- ── Overlay mobile ── -->
     <div
@@ -247,6 +316,129 @@ async function handleLogout() {
   background: var(--color-accent-dim);
   color: var(--color-accent);
   font-weight: 600;
+}
+
+.nav-badge {
+  margin-left: auto;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Toast ── */
+.message-toast {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  min-width: 320px;
+  max-width: 380px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-accent);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px -12px rgba(108, 99, 255, 0.5);
+}
+
+.toast-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  background: var(--color-accent-dim);
+  border: 1px solid var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toast-icon-svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--color-accent);
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin-bottom: 0.1rem;
+}
+
+.toast-text {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-text strong {
+  color: var(--color-text-primary);
+}
+
+.toast-link {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.toast-link:hover {
+  background: var(--color-accent-hover);
+  color: #fff;
+}
+
+.toast-link-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 0.2rem;
+  flex-shrink: 0;
+}
+
+.toast-close:hover {
+  color: var(--color-text-primary);
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(40px);
 }
 
 .nav-icon {

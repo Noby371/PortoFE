@@ -9,13 +9,13 @@ const { activeSection } = useActiveNav()
 const { openModal } = useHireModal()
 
 const navLinks = [
-  { label: 'About',      href: '#about',      id: 'about'      },
-  { label: 'Skills',     href: '#skills',     id: 'skills'     },
-  { label: 'Education',  href: '#education',  id: 'education'  },
-  { label: 'Projects',   href: '#projects',   id: 'projects'   },
+  { label: 'About', href: '#about', id: 'about' },
+  { label: 'Skills', href: '#skills', id: 'skills' },
+  { label: 'Education', href: '#education', id: 'education' },
+  { label: 'Projects', href: '#projects', id: 'projects' },
   { label: 'Experience', href: '#experience', id: 'experience' },
   { label: 'Certificates', href: '#certificates', id: 'certificates' },
-  { label: 'Contact',    href: '#contact',    id: 'contact'    },
+  { label: 'Contact', href: '#contact', id: 'contact' },
 ]
 
 function handleScroll() {
@@ -50,10 +50,9 @@ onUnmounted(() => {
 <template>
   <header :class="['navbar', { scrolled: isScrolled }]">
     <div class="container navbar-inner">
-
       <a href="#" class="navbar-logo">
         <span class="logo-bracket">&lt;</span>
-        FathBoy
+        MZF
         <span class="logo-bracket">/&gt;</span>
       </a>
 
@@ -88,9 +87,7 @@ onUnmounted(() => {
       >
         {{ link.label }}
       </a>
-      <button @click="openModal" class="btn-hire mobile-hire">
-        Hire Me
-      </button>
+      <button @click="openModal" class="btn-hire mobile-hire">Hire Me</button>
     </div>
   </header>
 </template>

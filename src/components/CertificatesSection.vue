@@ -18,6 +18,11 @@ interface Certificate {
 
 const certificates = ref<Certificate[]>([])
 const isLoading = ref(true)
+const brokenImages = ref<Set<number>>(new Set())
+
+function markBrokenImage(id: number) {
+  brokenImages.value.add(id)
+}
 
 onMounted(async () => {
   try {
@@ -58,10 +63,11 @@ function formatDate(date: string | null): string {
         >
           <div class="cert-image">
             <img
-              v-if="resolveAssetUrl(cert.imageUrl)"
+              v-if="resolveAssetUrl(cert.imageUrl) && !brokenImages.has(cert.id)"
               :src="resolveAssetUrl(cert.imageUrl)!"
               :alt="cert.title"
               loading="lazy"
+              @error="markBrokenImage(cert.id)"
             />
             <div v-else class="cert-image-placeholder">
               <TrophyIcon class="trophy-icon" />
@@ -143,7 +149,7 @@ function formatDate(date: string | null): string {
 
 .cert-image {
   width: 100%;
-  height: 150px;
+  aspect-ratio: 4 / 3;
   border-radius: 12px;
   background: var(--color-bg-hover);
   border: 1px solid var(--color-border);
@@ -242,7 +248,13 @@ function formatDate(date: string | null): string {
 }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
+  .cert-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
   .cert-grid {
     grid-template-columns: 1fr;
   }

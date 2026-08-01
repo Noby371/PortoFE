@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { getProjects } from '../services/api'
+import { getProjects, resolveAssetUrl } from '../services/api'
 import { useScrollReveal } from '../composables/useScrollReveal'
 import {
   ArrowTopRightOnSquareIcon,
@@ -40,6 +40,11 @@ const isError = ref(false)
 const errorMessage = ref('')
 const activeFilter = ref<ProjectType>('ALL')
 const isRetrying = ref(false)
+const brokenImages = ref<Set<number>>(new Set())
+
+function markBrokenImage(id: number) {
+  brokenImages.value.add(id)
+}
 
 // ─── CONSTANTS ──────────────────────────────────────────
 const filters: { label: string; value: ProjectType }[] = [
@@ -273,8 +278,13 @@ if (import.meta.env.DEV) {
           <div v-if="project.featured" class="featured-badge">⭐ Featured</div>
 
           <!-- Card Image -->
-          <div v-if="project.imageUrl" class="card-image">
-            <img :src="project.imageUrl" :alt="project.title" loading="lazy" />
+          <div v-if="project.imageUrl && !brokenImages.has(project.id)" class="card-image">
+            <img
+              :src="resolveAssetUrl(project.imageUrl) ?? undefined"
+              :alt="project.title"
+              loading="lazy"
+              @error="markBrokenImage(project.id)"
+            />
           </div>
 
           <!-- Card Top -->

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getProfile } from '../services/api'
-import { CodeBracketSquareIcon, HeartIcon } from '@heroicons/vue/24/solid'
 
 const currentYear = new Date().getFullYear()
 
@@ -91,13 +90,6 @@ const navLinks = [
       <div class="footer-bottom">
         <p class="footer-copy">
           © {{ currentYear }} {{ profile?.name ?? 'FathBoy' }}. All rights reserved.
-        </p>
-        <p class="footer-made">
-          Made with
-          <HeartIcon class="heart-icon" />
-          using
-          <CodeBracketSquareIcon class="code-icon" />
-          Vue.js & TypeScript
         </p>
       </div>
     </div>
@@ -214,36 +206,14 @@ const navLinks = [
 .footer-bottom {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
+  justify-content: center;
+  text-align: center;
 }
 
 .footer-copy {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   color: var(--color-text-muted);
-}
-
-.footer-made {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-}
-
-.heart-icon {
-  width: 0.85rem;
-  height: 0.85rem;
-  color: #f43f5e;
-}
-
-.code-icon {
-  width: 0.95rem;
-  height: 0.95rem;
-  color: var(--color-accent);
 }
 
 /* ── Responsive ── */

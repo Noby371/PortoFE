@@ -30,6 +30,11 @@ const errorMsg = ref('')
 const isModalOpen = ref(false)
 const isEditing = ref(false)
 const isSaving = ref(false)
+const brokenImages = ref<Set<number>>(new Set())
+
+function markBrokenImage(id: number) {
+  brokenImages.value.add(id)
+}
 
 // ── Upload gambar sertifikat ────────────────────────────
 const certImageFile = ref<File | null>(null)
@@ -217,7 +222,13 @@ function formatDate(date: string | null) {
       >
         <!-- Image -->
         <div class="cert-image">
-          <img v-if="cert.imageUrl" :src="cert.imageUrl" :alt="cert.title" />
+          <img
+            v-if="cert.imageUrl && !brokenImages.has(cert.id)"
+            :src="resolveAssetUrl(cert.imageUrl) ?? undefined"
+            :alt="cert.title"
+            loading="lazy"
+            @error="markBrokenImage(cert.id)"
+          />
           <div v-else class="cert-image-placeholder">🏆</div>
         </div>
 

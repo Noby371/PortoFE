@@ -5,6 +5,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowUpTrayIcon,
+  DocumentTextIcon,
   UserCircleIcon,
 } from '@heroicons/vue/24/outline'
 import api, { resolveAssetUrl } from '../../services/api'
@@ -82,6 +83,43 @@ async function handleAvatarUpload() {
       'Gagal mengunggah foto. Pastikan file JPG/PNG/WebP maks 5MB.'
   } finally {
     isUploadingAvatar.value = false
+  }
+}
+
+// ── CV / Resume upload ───────────────────────────────────
+const resumeFile = ref<File | null>(null)
+const isUploadingResume = ref(false)
+const resumeMsg = ref('')
+const resumeError = ref('')
+
+function handleResumeSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  resumeFile.value = file
+  resumeError.value = ''
+  resumeMsg.value = 'Klik "Upload CV" untuk menyimpan file baru.'
+}
+
+async function handleResumeUpload() {
+  if (!resumeFile.value) return
+  isUploadingResume.value = true
+  resumeMsg.value = ''
+  resumeError.value = ''
+
+  try {
+    const fd = new FormData()
+    fd.append('resume', resumeFile.value)
+    const res = await api.post('/profile/resume', fd)
+    form.value.resumeUrl = res.data.resumeUrl
+    resumeFile.value = null
+    resumeMsg.value = 'CV berhasil diunggah!'
+  } catch (err) {
+    resumeError.value =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal mengunggah CV. Pastikan file PDF/DOC/DOCX maks 10MB.'
+  } finally {
+    isUploadingResume.value = false
   }
 }
 
@@ -168,6 +206,62 @@ async function handleSave() {
 
             <p v-if="avatarMsg" class="avatar-msg avatar-msg-success">{{ avatarMsg }}</p>
             <p v-else-if="avatarError" class="avatar-msg avatar-msg-error">{{ avatarError }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Resume / CV -->
+      <div class="form-section resume-section">
+        <h3 class="form-section-title">Resume / CV</h3>
+
+        <div class="resume-row">
+          <div class="resume-icon-wrap">
+            <DocumentTextIcon class="resume-icon" />
+          </div>
+
+          <div class="avatar-controls">
+            <p class="avatar-hint">
+              CV akan disimpan di server dan dipakai tombol "Download CV" di halaman publik.
+              Saat diganti, file lama otomatis dihapus. Format: PDF / DOC / DOCX (maks 10MB).
+            </p>
+
+            <div class="resume-actions">
+              <label class="avatar-file-btn">
+                <ArrowUpTrayIcon class="btn-icon" />
+                Pilih File
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+                  class="avatar-file-input"
+                  @change="handleResumeSelect"
+                />
+              </label>
+
+              <button
+                type="button"
+                class="btn-save avatar-upload-btn"
+                :disabled="!resumeFile || isUploadingResume"
+                @click="handleResumeUpload"
+              >
+                <span v-if="isUploadingResume" class="spinner"></span>
+                <template v-else>
+                  <CloudArrowUpIcon class="btn-icon" />
+                  {{ resumeFile ? 'Upload CV' : 'Upload CV' }}
+                </template>
+              </button>
+
+              <a
+                v-if="form.resumeUrl"
+                :href="resolveAssetUrl(form.resumeUrl) ?? undefined"
+                target="_blank"
+                class="avatar-file-btn resume-view-btn"
+              >
+                Lihat CV Saat Ini
+              </a>
+            </div>
+
+            <p v-if="resumeMsg" class="avatar-msg avatar-msg-success">{{ resumeMsg }}</p>
+            <p v-else-if="resumeError" class="avatar-msg avatar-msg-error">{{ resumeError }}</p>
           </div>
         </div>
       </div>
@@ -416,6 +510,43 @@ async function handleSave() {
 
 .avatar-msg-error {
   color: #ef4444;
+}
+
+/* ── Resume / CV Upload ────────────────────────────────── */
+.resume-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.resume-icon-wrap {
+  width: 120px;
+  height: 120px;
+  border-radius: 14px;
+  border: 2px dashed var(--color-border);
+  background: var(--color-bg-hover);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resume-icon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--color-text-muted);
+}
+
+.resume-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.resume-view-btn {
+  text-decoration: none;
 }
 
 /* Form */

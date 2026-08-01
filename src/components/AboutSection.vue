@@ -88,9 +88,9 @@ const infoItems = computed(() => [
         <!-- ── Left ── -->
         <div class="about-text">
           <p class="reveal-left reveal-delay-1">
-            Saya adalah mahasiswa <strong>Teknik Informatika semester 8</strong> di Universitas
-            Wiraraja Madura yang sedang menyelesaikan tugas akhir tentang sistem monitoring tempat
-            sampah berbasis IoT menggunakan Fuzzy Tsukamoto.
+            Saya adalah fresh graduate <strong>Teknik Informatika</strong> dari Universitas
+            Wiraraja Madura. Tugas akhir saya adalah sistem monitoring tempat sampah berbasis IoT
+            menggunakan Fuzzy Tsukamoto.
           </p>
           <p class="reveal-left reveal-delay-2">
             {{

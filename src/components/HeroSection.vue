@@ -100,7 +100,7 @@ onUnmounted(() => {
         </div>
 
         <p class="hero-desc">
-          {{ profile?.bio ?? 'Mahasiswa Teknik Informatika tingkat akhir di Universitas Wiraraja Madura, berpengalaman dalam pengembangan sistem IoT, web fullstack, dan mobile application. Co-founder InnoTech — software house Sumenep.' }}
+          {{ profile?.bio ?? 'Fresh Graduate Teknik Informatika dari Universitas Wiraraja Madura, berpengalaman dalam pengembangan sistem IoT, web fullstack, dan mobile application. Co-founder InnoTech — software house Sumenep.' }}
         </p>
 
         <div class="hero-cta">

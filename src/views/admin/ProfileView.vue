@@ -123,6 +123,50 @@ async function handleResumeUpload() {
   }
 }
 
+// ── Ubah password ──────────────────────────────────────
+const pwForm = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+const isChangingPw = ref(false)
+const pwMsg = ref('')
+const pwError = ref('')
+
+async function handleChangePassword() {
+  pwMsg.value = ''
+  pwError.value = ''
+
+  if (!pwForm.value.currentPassword || !pwForm.value.newPassword) {
+    pwError.value = 'Lengkapi password lama dan password baru.'
+    return
+  }
+  if (pwForm.value.newPassword.length < 8) {
+    pwError.value = 'Password baru minimal 8 karakter.'
+    return
+  }
+  if (pwForm.value.newPassword !== pwForm.value.confirmPassword) {
+    pwError.value = 'Konfirmasi password tidak cocok.'
+    return
+  }
+
+  isChangingPw.value = true
+  try {
+    const res = await api.post('/auth/change-password', {
+      currentPassword: pwForm.value.currentPassword,
+      newPassword: pwForm.value.newPassword,
+    })
+    pwMsg.value = res.data.message ?? 'Password berhasil diubah!'
+    pwForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
+  } catch (err) {
+    pwError.value =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal mengubah password. Coba lagi.'
+  } finally {
+    isChangingPw.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     const res = await api.get('/profile')
@@ -263,6 +307,62 @@ async function handleSave() {
             <p v-if="resumeMsg" class="avatar-msg avatar-msg-success">{{ resumeMsg }}</p>
             <p v-else-if="resumeError" class="avatar-msg avatar-msg-error">{{ resumeError }}</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Section: Keamanan -->
+      <div class="form-section">
+        <h3 class="form-section-title">Keamanan</h3>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Password Lama</label>
+            <input
+              v-model="pwForm.currentPassword"
+              type="password"
+              class="form-input"
+              placeholder="••••••••"
+              autocomplete="current-password"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password Baru (min. 8 karakter)</label>
+            <input
+              v-model="pwForm.newPassword"
+              type="password"
+              class="form-input"
+              placeholder="••••••••"
+              autocomplete="new-password"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Konfirmasi Password Baru</label>
+            <input
+              v-model="pwForm.confirmPassword"
+              type="password"
+              class="form-input"
+              placeholder="••••••••"
+              autocomplete="new-password"
+            />
+          </div>
+        </div>
+
+        <p v-if="pwMsg" class="avatar-msg avatar-msg-success">{{ pwMsg }}</p>
+        <p v-else-if="pwError" class="avatar-msg avatar-msg-error">{{ pwError }}</p>
+
+        <div class="pw-actions">
+          <button
+            type="button"
+            class="btn-save"
+            :disabled="isChangingPw"
+            @click="handleChangePassword"
+          >
+            <span v-if="isChangingPw" class="spinner"></span>
+            <template v-else>
+              <CheckCircleIcon class="btn-icon" />
+              Ubah Password
+            </template>
+          </button>
         </div>
       </div>
 
@@ -547,6 +647,17 @@ async function handleSave() {
 
 .resume-view-btn {
   text-decoration: none;
+}
+
+/* ── Ubah Password ───────────────────────────────────── */
+.pw-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pw-actions .btn-save {
+  padding: 0.65rem 1.5rem;
+  font-size: 0.85rem;
 }
 
 /* Form */

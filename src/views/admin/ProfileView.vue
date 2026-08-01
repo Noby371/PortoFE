@@ -366,9 +366,9 @@ async function handleSave() {
             <label class="form-label">Resume / CV URL</label>
             <input
               v-model="form.resumeUrl"
-              type="url"
+              type="text"
               class="form-input"
-              placeholder="https://example.com/cv.pdf"
+              placeholder="/uploads/resume/xxx.pdf atau https://..."
             />
           </div>
         </div>
